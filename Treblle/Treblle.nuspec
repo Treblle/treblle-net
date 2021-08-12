@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package >
+  <metadata>
+    <id>Treblle.Net</id>
+    <version>1.0.0</version>
+    <title>Treblle.Net</title>
+    <authors>Treblle</authors>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <license type="expression">MIT</license>
+    <projectUrl>https://treblle.com/</projectUrl>
+    <!-- <iconUrl>http://icon_url_here_or_delete_this_line/</iconUrl> -->
+    <description>Treblle .Net package</description>
+    <!-- <copyright>$copyright$</copyright>> -->
+  </metadata>
+  <files>
+    <file src="tools\Install.ps1" target="tools\Install.ps1" />
+  </files>
+</package>
