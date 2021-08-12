@@ -78,7 +78,7 @@ That's it. Your API requests and responses are now being sent to your Treblle pr
 
 ### Need to hide additional fields?
 
-If you want to expand the list of fields you want to hide, you can pass property names you want to hide by adding the ```AdditionalFieldsToMask``` property to your ```app.config``` file like in the example below.
+If you want to expand the list of fields you want to hide, you can pass property names you want to hide by adding the ```AdditionalFieldsToMask``` property to your ```Web.config``` file like in the example below.
 
   
 
