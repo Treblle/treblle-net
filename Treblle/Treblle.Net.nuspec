@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package >
+  <metadata>
+    <id>Treblle.Net</id>
+    <version>1.0.1</version>
+    <title>Treblle.Net</title>
+    <authors>Treblle</authors>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <license type="expression">MIT</license>
+    <projectUrl>https://github.com/Treblle/treblle-net</projectUrl>
+    <repository type="git" url="https://github.com/Treblle/treblle-net.git" branch="master"/>
+    <description>Treblle makes it super easy to understand what’s going on with your APIs and the apps that use them.</description>
+    <icon>resources\TreblleIcon.png</icon>
+    <readme>docs\README.md</readme>
+    <copyright>Copyright 2021, Treblle Limited</copyright>
+  </metadata>
+  <files>
+    <file src="tools\Install.ps1" target="tools\Install.ps1" />
+    <file src="resources\TreblleIcon.png" target="resources\" />
+    <file src="docs\README.md" target="docs\" />
+  </files>
+</package>
