@@ -2,7 +2,7 @@
 <package >
   <metadata>
     <id>Treblle.Net</id>
-    <version>1.0.1</version>
+    <version>1.0.2</version>
     <title>Treblle.Net</title>
     <authors>Treblle</authors>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
@@ -17,6 +17,6 @@
   <files>
     <file src="tools\Install.ps1" target="tools\Install.ps1" />
     <file src="resources\TreblleIcon.png" target="resources\" />
-    <file src="docs\README.md" target="docs\" />
+    <file src="..\README.md" target="docs\" />
   </files>
 </package>
