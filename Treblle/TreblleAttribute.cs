@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Dynamic;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -9,6 +10,7 @@ using System.Threading.Tasks;
 using System.Web;
 using System.Web.Http.Controllers;
 using System.Web.Http.Filters;
+using System.Xml.Linq;
 
 namespace Treblle.Net
 {
@@ -88,13 +90,40 @@ namespace Treblle.Net
                     request.Method = actionContext.Request.Method.ToString();
 
                     request.Body = null;
-                    if (actionContext.Request.Content.Headers.ContentType?.ToString() == "application/json")
-                    {
-                        Stream req = HttpContext.Current.Request.InputStream;
-                        req.Seek(0, SeekOrigin.Begin);
-                        var bodyJson = new StreamReader(req).ReadToEnd();
 
-                        request.Body = Newtonsoft.Json.JsonConvert.DeserializeObject<dynamic>(bodyJson);
+                    if (actionContext.Request.Content.Headers.ContentType != null)
+                    {
+                        if (actionContext.Request.Content.Headers.ContentType.ToString().Contains("application/json"))
+                        {
+                            Stream req = HttpContext.Current.Request.InputStream;
+                            req.Seek(0, SeekOrigin.Begin);
+                            var bodyJson = new StreamReader(req).ReadToEnd();
+
+                            request.Body = Newtonsoft.Json.JsonConvert.DeserializeObject<dynamic>(bodyJson);
+                        }
+                        else if (actionContext.Request.Content.Headers.ContentType.ToString().Contains("text/plain"))
+                        {
+                            Stream req = HttpContext.Current.Request.InputStream;
+                            req.Seek(0, SeekOrigin.Begin);
+                            var text = new StreamReader(req).ReadToEnd();
+
+                            request.Body = text;
+                        }
+                        else if (actionContext.Request.Content.Headers.ContentType.ToString().Contains("application/xml"))
+                        {
+                            Stream req = HttpContext.Current.Request.InputStream;
+                            req.Seek(0, SeekOrigin.Begin);
+                            var xmlData = new StreamReader(req).ReadToEnd();
+
+                            XDocument doc = XDocument.Parse(xmlData);
+                            string jsonText = Newtonsoft.Json.JsonConvert.SerializeXNode(doc);
+                            request.Body = Newtonsoft.Json.JsonConvert.DeserializeObject<ExpandoObject>(jsonText);
+                        }
+                        else if (HttpContext.Current.Request.Form != null)
+                        {
+                            var dict = HttpContext.Current.Request.Form.AllKeys.ToDictionary(k => k, k => HttpContext.Current.Request.Form[k]);
+                            request.Body = dict;
+                        }
                     }
 
                     if (actionContext.Request.Headers != null)
