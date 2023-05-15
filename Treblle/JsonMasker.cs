@@ -1,11 +1,8 @@
 ﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace Treblle.Net
 {
@@ -13,22 +10,18 @@ namespace Treblle.Net
     {
         public static string Mask(this string json, string[] blacklist, string mask)
         {
-            if (string.IsNullOrWhiteSpace(json) == true)
+            if (string.IsNullOrWhiteSpace(json))
             {
                 return json;
             }
 
-            if (blacklist == null)
-            {
-                return json;
-            }
-
-            if (blacklist.Any() == false)
+            if (blacklist == null || !blacklist.Any())
             {
                 return json;
             }
 
             var jsonObject = (JObject)JsonConvert.DeserializeObject(json);
+
             MaskFieldsFromJToken(jsonObject, blacklist, mask);
 
             var result = jsonObject.ToString();
@@ -38,16 +31,17 @@ namespace Treblle.Net
 
         private static void MaskFieldsFromJToken(JToken token, string[] blacklist, string mask)
         {
-            JContainer container = token as JContainer;
+            var container = token as JContainer;
+
             if (container == null)
             {
                 return; // abort recursive
             }
 
-            List<JToken> removeList = new List<JToken>();
-            foreach (JToken jtoken in container.Children())
+            var removeList = new List<JToken>();
+            foreach (var jToken in container.Children())
             {
-                if (jtoken is JProperty prop)
+                if (jToken is JProperty prop)
                 {
                     var matching = blacklist.Any(item =>
                     {
@@ -56,18 +50,19 @@ namespace Treblle.Net
 
                     if (matching)
                     {
-                        removeList.Add(jtoken);
+                        removeList.Add(jToken);
                     }
                 }
 
                 // call recursive 
-                MaskFieldsFromJToken(jtoken, blacklist, mask);
+                MaskFieldsFromJToken(jToken, blacklist, mask);
             }
 
             // replace 
-            foreach (JToken el in removeList)
+            foreach (var el in removeList)
             {
                 var prop = (JProperty)el;
+
                 prop.Value = mask;
             }
         }

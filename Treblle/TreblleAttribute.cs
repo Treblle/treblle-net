@@ -5,8 +5,6 @@ using System.Dynamic;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Text;
-using System.Threading.Tasks;
 using System.Web;
 using System.Web.Http.Controllers;
 using System.Web.Http.Filters;
@@ -16,7 +14,8 @@ namespace Treblle.Net
 {
     public class TreblleAttribute : ActionFilterAttribute
     {
-        private List<string> sensitiveWords = new List<string>() {
+        private static readonly List<string> SensitiveWords = new List<string>
+        {
           "password",
           "pwd",
           "secret",
@@ -53,7 +52,7 @@ namespace Treblle.Net
                 ApiKey = System.Configuration.ConfigurationManager.AppSettings["TreblleApiKey"];
                 ProjectId = System.Configuration.ConfigurationManager.AppSettings["TreblleProjectId"];
 
-                if (!String.IsNullOrWhiteSpace(ApiKey) && !String.IsNullOrWhiteSpace(ProjectId))
+                if (!string.IsNullOrWhiteSpace(ApiKey) && !string.IsNullOrWhiteSpace(ProjectId))
                 {
                     stopwatch.Start();
 
@@ -66,7 +65,7 @@ namespace Treblle.Net
 
                     if(Environment.Version != null)
                     {
-                        language.Version = Environment.Version.Major.ToString() + "." + Environment.Version.Minor.ToString() + "." + Environment.Version.Revision.ToString();
+                        language.Version = $"{Environment.Version.Major}.{Environment.Version.Minor}.{Environment.Version.Revision}";
                     }
                     else
                     {
@@ -134,18 +133,15 @@ namespace Treblle.Net
                         }
                         catch (Exception ex)
                         {
-
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
-
             }
 
             base.OnActionExecuting(actionContext);
-
         }
 
         public override void OnActionExecuted(HttpActionExecutedContext actionExecutedContext)
@@ -155,7 +151,7 @@ namespace Treblle.Net
                 ApiKey = System.Configuration.ConfigurationManager.AppSettings["TreblleApiKey"];
                 ProjectId = System.Configuration.ConfigurationManager.AppSettings["TreblleProjectId"];
 
-                if (!String.IsNullOrWhiteSpace(ApiKey) && !String.IsNullOrWhiteSpace(ProjectId))
+                if (!string.IsNullOrWhiteSpace(ApiKey) && !string.IsNullOrWhiteSpace(ProjectId))
                 {
                     data.Errors = new List<Error>();
 
@@ -247,14 +243,12 @@ namespace Treblle.Net
                     };
 
                     var subscription = HttpContext.Current.AddOnRequestCompleted(AddOnRequestCompletedCallback);
-
                 }
             }
             catch (Exception ex)
             {
 
             }
-
         }
 
         private void PrepareAndSendJson()
@@ -272,18 +266,17 @@ namespace Treblle.Net
             var json = Newtonsoft.Json.JsonConvert.SerializeObject(payload);
 
             var additionalFieldsToMask = System.Configuration.ConfigurationManager.AppSettings["AdditionalFieldsToMask"];
-            if (!String.IsNullOrWhiteSpace(additionalFieldsToMask))
+            if (!string.IsNullOrWhiteSpace(additionalFieldsToMask))
             {
                 var additionalFields = additionalFieldsToMask.Split(',');
                 if (additionalFields.Any())
                 {
                     var list = additionalFields.ToList();
-                    sensitiveWords.AddRange(list);
+                    SensitiveWords.AddRange(list);
                 }
             }
-
-
-            var maskedJson = json.Mask(sensitiveWords.ToArray(), "*****");
+            
+            var maskedJson = json.Mask(SensitiveWords.ToArray(), "*****");
 
             var httpWebRequest = (HttpWebRequest)WebRequest.Create("https://rocknrolla.treblle.com");
             httpWebRequest.ContentType = "application/json";
@@ -296,7 +289,6 @@ namespace Treblle.Net
             }
 
             var httpResponse = httpWebRequest.GetResponse();
-
         }
     }
 }
