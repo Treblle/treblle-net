@@ -2,7 +2,7 @@
 <package >
   <metadata>
     <id>Treblle.Net</id>
-    <version>1.0.6</version>
+    <version>1.0.7-beta</version>
     <title>Treblle.Net</title>
     <authors>Treblle</authors>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
@@ -12,7 +12,7 @@
     <description>Treblle makes it super easy to understand what's going on with your APIs and the apps that use them.</description>
     <icon>resources\TreblleIcon.png</icon>
     <readme>docs\README.md</readme>
-    <copyright>Copyright 2021, Treblle Limited</copyright>
+    <copyright>Copyright 2024, Treblle Limited</copyright>
   </metadata>
   <files>
     <file src="tools\Install.ps1" target="tools\Install.ps1" />

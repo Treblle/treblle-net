@@ -4,7 +4,8 @@ using System.Diagnostics;
 using System.Dynamic;
 using System.IO;
 using System.Linq;
-using System.Net;
+using System.Net.Http;
+using System.Text;
 using System.Web;
 using System.Web.Http.Controllers;
 using System.Web.Http.Filters;
@@ -14,6 +15,8 @@ namespace Treblle.Net
 {
     public class TreblleAttribute : ActionFilterAttribute
     {
+        private static readonly HttpClient Client = new HttpClient();
+
         private static readonly List<string> SensitiveWords = new List<string>
         {
           "password",
@@ -278,17 +281,16 @@ namespace Treblle.Net
             
             var maskedJson = json.Mask(SensitiveWords.ToArray(), "*****");
 
-            var httpWebRequest = (HttpWebRequest)WebRequest.Create("https://rocknrolla.treblle.com");
-            httpWebRequest.ContentType = "application/json";
-            httpWebRequest.Method = "POST";
-            httpWebRequest.Headers.Add("x-api-key", ApiKey);
-
-            using (var streamWriter = new StreamWriter(httpWebRequest.GetRequestStream()))
+            using (var content = new StringContent(maskedJson, Encoding.UTF8, "application/json"))
             {
-                streamWriter.Write(maskedJson);
-            }
+                content.Headers.Add("x-api-key", ApiKey);
 
-            var httpResponse = httpWebRequest.GetResponse();
+                var httpResponseMessage = Client
+                    .PostAsync("https://rocknrolla.treblle.com", content)
+                    .ConfigureAwait(false)
+                    .GetAwaiter()
+                    .GetResult();
+            }
         }
     }
 }
