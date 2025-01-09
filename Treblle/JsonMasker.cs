@@ -2,7 +2,6 @@
 using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
 
 namespace Treblle.Net
 {
@@ -21,50 +20,35 @@ namespace Treblle.Net
             }
 
             var jsonObject = (JObject)JsonConvert.DeserializeObject(json);
+            var blacklistSet = new HashSet<string>(blacklist);
 
-            MaskFieldsFromJToken(jsonObject, blacklist, mask);
+            MaskFieldsFromJToken(jsonObject, blacklistSet, mask);
 
             var result = jsonObject.ToString();
 
             return result;
         }
 
-        private static void MaskFieldsFromJToken(JToken token, string[] blacklist, string mask)
+        private static void MaskFieldsFromJToken(JToken token, HashSet<string> blacklist, string mask)
         {
-            var container = token as JContainer;
-
-            if (container == null)
+            if (token is null || !(token is JContainer container))
             {
-                return; // abort recursive
+                return;
             }
 
-            var removeList = new List<JToken>();
             foreach (var jToken in container.Children())
             {
                 if (jToken is JProperty prop)
                 {
-                    var matching = blacklist.Any(item =>
+                    if (blacklist.Contains(prop.Name))
                     {
-                        return Regex.IsMatch(prop.Path, "(?<=\\.)(\\b" + item + "\\b)(?=\\.?)", RegexOptions.IgnoreCase);
-                    });
-
-                    if (matching)
-                    {
-                        removeList.Add(jToken);
+                        prop.Value = mask;
                     }
                 }
 
-                // call recursive 
                 MaskFieldsFromJToken(jToken, blacklist, mask);
             }
-
-            // replace 
-            foreach (var el in removeList)
-            {
-                var prop = (JProperty)el;
-
-                prop.Value = mask;
-            }
         }
+
     }
 }
