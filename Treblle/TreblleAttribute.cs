@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Diagnostics;
 using System.Dynamic;
 using System.IO;
@@ -9,25 +10,34 @@ using System.Web;
 using System.Web.Http.Controllers;
 using System.Web.Http.Filters;
 using System.Xml.Linq;
+using Treblle.Net.Masking;
 
 namespace Treblle.Net
 {
     public class TreblleAttribute : ActionFilterAttribute
     {
-        private static readonly List<string> SensitiveWords = new List<string>
+
+        private static readonly Dictionary<string, string> maskingMap = new Dictionary<string, string>()
         {
-          "password",
-          "pwd",
-          "secret",
-          "password_confirmation",
-          "passwordConfirmation",
-          "cc",
-          "card_number",
-          "cardNumber",
-          "ccv",
-          "ssn",
-          "credit_score",
-          "creditScore"
+            { "password", "DefaultStringMasker" },
+            { "pwd", "DefaultStringMasker" },
+            { "secret", "DefaultStringMasker" },
+            { "password_confirmation", "DefaultStringMasker" },
+            { "passwordConfirmation", "DefaultStringMasker" },
+            { "cc", "CreditCardMasker" },
+            { "card_number", "CreditCardMasker" },
+            { "cardNumber", "CreditCardMasker" },
+            { "ccv", "CreditCardMasker" },
+            { "ssn", "SocialSecurityMasker" },
+            { "credit_score", "DefaultStringMasker" },
+            { "creditScore", "DefaultStringMasker" },
+            { "email", "EmailMasker" },
+            { "account.*", "DefaultStringMasker" },
+            { "user.email", "EmailMasker" },
+            { "user.dob", "DateMasker" },
+            { "user.password","DefaultStringMasker" },
+            { "user.ss", "SocialSecurityMasker" },
+            { "user.payments.cc", "CreditCardMasker" }
         };
 
         public string ApiKey = "";
@@ -63,7 +73,7 @@ namespace Treblle.Net
 
                     language.Name = "c#";
 
-                    if(Environment.Version != null)
+                    if (Environment.Version != null)
                     {
                         language.Version = $"{Environment.Version.Major}.{Environment.Version.Minor}.{Environment.Version.Revision}";
                     }
@@ -148,8 +158,8 @@ namespace Treblle.Net
         {
             try
             {
-                ApiKey = System.Configuration.ConfigurationManager.AppSettings["TreblleApiKey"];
-                ProjectId = System.Configuration.ConfigurationManager.AppSettings["TreblleProjectId"];
+                ApiKey = ConfigurationManager.AppSettings["TreblleApiKey"];
+                ProjectId = ConfigurationManager.AppSettings["TreblleProjectId"];
 
                 if (!string.IsNullOrWhiteSpace(ApiKey) && !string.IsNullOrWhiteSpace(ProjectId))
                 {
@@ -265,18 +275,32 @@ namespace Treblle.Net
 
             var json = Newtonsoft.Json.JsonConvert.SerializeObject(payload);
 
-            var additionalFieldsToMask = System.Configuration.ConfigurationManager.AppSettings["AdditionalFieldsToMask"];
-            if (!string.IsNullOrWhiteSpace(additionalFieldsToMask))
+            string additionalFieldsFromSettings = ConfigurationManager.AppSettings["FieldsToMaskPairedWithMaskers"];
+            // Read the comma-separated key-value pairs from appSettings
+            if (!string.IsNullOrEmpty(additionalFieldsFromSettings))
             {
-                var additionalFields = additionalFieldsToMask.Split(',');
-                if (additionalFields.Any())
+                var additionalFieldsToMask = new Dictionary<string, string>();
+
+                // Split the string by commas to get individual key-value pairs
+                var pairs = additionalFieldsFromSettings.Split(',');
+
+                foreach (var pair in pairs)
                 {
-                    var list = additionalFields.ToList();
-                    SensitiveWords.AddRange(list);
+                    var parts = pair.Split(new[] { ": " }, StringSplitOptions.None);
+
+                    if (parts.Length == 2)
+                    {
+                        additionalFieldsToMask[parts[0]] = parts[1];
+                    }
+                }
+
+                if (additionalFieldsToMask.Any())
+                {
+                    maskingMap.Concat(additionalFieldsToMask);
                 }
             }
-            
-            var maskedJson = json.Mask(SensitiveWords.ToArray(), "*****");
+
+            var maskedJson = json.Mask(maskingMap, "*****");
 
             var httpWebRequest = (HttpWebRequest)WebRequest.Create("https://rocknrolla.treblle.com");
             httpWebRequest.ContentType = "application/json";
