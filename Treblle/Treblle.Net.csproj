@@ -79,7 +79,15 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="JsonMasker.cs" />
+    <Compile Include="Helpers\AssemblyHelper.cs" />
+    <Compile Include="Masking\DateMasker.cs" />
+    <Compile Include="Masking\DefaultStringMasker.cs" />
+    <Compile Include="Masking\CreditCardMasker.cs" />
+    <Compile Include="Masking\EmailMasker.cs" />
+    <Compile Include="Masking\JsonMasker.cs" />
+    <Compile Include="Masking\PostalCodeMatcher.cs" />
+    <Compile Include="Masking\SocialSecurityMasker.cs" />
+    <Compile Include="Masking\﻿IStringMasker.cs" />
     <Compile Include="TrebllePayload.cs" />
     <Compile Include="TreblleAttribute.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
