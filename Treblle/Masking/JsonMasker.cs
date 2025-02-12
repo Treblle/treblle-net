@@ -10,7 +10,7 @@ namespace Treblle.Net.Masking
 
     public static class JsonMasker
     {
-        static List<IStringMasker> maskers = null;
+        static List<DefaultStringMasker> maskers = null;
 
         public static string Mask(this string json, Dictionary<string, string> maskingMap, string mask)
         {
@@ -60,32 +60,37 @@ namespace Treblle.Net.Masking
 
                             if (shouldMapPath(map.Key, currentPath))
                             {
-                                IStringMasker masker = maskers.Where(obj => obj.GetType().Name == map.Value)
+                                DefaultStringMasker masker = maskers.Where(obj => obj.GetType().Name == map.Value)
                                     .SingleOrDefault();
 
                                 if (masker != null)
                                 {
                                     prop.Value = masker.Mask(prop.Value.ToString());
+                                    isValueMasked = true;
                                     break;
                                 }
-                            }
-                        }
-
-                        // if the value is not masked go over mapping once again to check if value matches any pattern
-                        if (!isValueMasked)
-                        {
-                            foreach (IStringMasker masker in maskers)
-                            {
-                                if (masker.IsPatternMatch(prop.Value.ToString()))
+                                else
                                 {
-                                    prop.Value = masker.Mask(prop.Value.ToString());
-                                    break;
+                                    Console.WriteLine($"Could not resolve masker for field {currentPath}");
+                                }
+                            }
+
+                            // if the value is not masked go over mapping once again to check if value matches any pattern
+                            if (!isValueMasked)
+                            {
+                                foreach (DefaultStringMasker masker in maskers)
+                                {
+                                    if (masker.IsPatternMatch(prop.Value.ToString()))
+                                    {
+                                        prop.Value = masker.Mask(prop.Value.ToString());
+                                        break;
+                                    }
                                 }
                             }
                         }
                     }
-                }
 
+                }
             }
         }
 
@@ -100,15 +105,15 @@ namespace Treblle.Net.Masking
 
         private static void loadMaskers()
         {
-            maskers = new List<IStringMasker>();
+            maskers = new List<DefaultStringMasker>();
             var allMaskerTypes = AssemblyHelper.GetClassesDerivedFromType(typeof(IStringMasker));
 
             foreach (var type in allMaskerTypes)
             {
-                IStringMasker instance = (IStringMasker)AssemblyHelper.CreateInstance(type);
+                DefaultStringMasker instance = (DefaultStringMasker)AssemblyHelper.CreateInstance(type);
                 maskers.Add(instance);
             }
         }
-        
+
     }
 }
