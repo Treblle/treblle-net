@@ -6,6 +6,7 @@ using System.Dynamic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Reflection;
 using System.Web;
 using System.Web.Http.Controllers;
 using System.Web.Http.Filters;
@@ -59,30 +60,24 @@ namespace Treblle.Net
         {
             try
             {
-                ApiKey = System.Configuration.ConfigurationManager.AppSettings["TreblleApiKey"];
-                ProjectId = System.Configuration.ConfigurationManager.AppSettings["TreblleProjectId"];
+                ApiKey = ConfigurationManager.AppSettings["TreblleApiKey"];
+                ProjectId = ConfigurationManager.AppSettings["TreblleProjectId"];
 
                 if (!string.IsNullOrWhiteSpace(ApiKey) && !string.IsNullOrWhiteSpace(ProjectId))
                 {
                     stopwatch.Start();
 
-                    payload.Sdk = "net";
-                    payload.Version = actionContext.Request.Version.ToString();
+                    payload.Sdk = "net-framework";
+                    payload.Version = GetTrimmedSdkVersion();
                     payload.ProjectId = ProjectId;
                     payload.ApiKey = ApiKey;
 
                     language.Name = "c#";
+                    
+                    payload.Version = GetCSharpVersion();
 
-                    if (Environment.Version != null)
-                    {
-                        language.Version = $"{Environment.Version.Major}.{Environment.Version.Minor}.{Environment.Version.Revision}";
-                    }
-                    else
-                    {
-                        language.Version = String.Empty;
-                    }
-
-                    server.Ip = HttpContext.Current.Request.ServerVariables["LOCAL_ADDR"];
+                    string serverIpAddress = HttpContext.Current.Request.ServerVariables["LOCAL_ADDR"];
+                    server.Ip = string.IsNullOrEmpty(serverIpAddress) ? "bogon" : serverIpAddress;
                     server.Timezone = (!String.IsNullOrEmpty(TimeZone.CurrentTimeZone.StandardName)) ? TimeZone.CurrentTimeZone.StandardName : "UTC";
                     server.Software = HttpContext.Current.Request.ServerVariables["SERVER_SOFTWARE"];
                     server.Signature = null;
@@ -92,9 +87,12 @@ namespace Treblle.Net
                     os.Release = Environment.OSVersion.Version.ToString();
                     os.Architecture = Environment.GetEnvironmentVariable("PROCESSOR_ARCHITECTURE");
 
-                    request.Timestamp = HttpContext.Current.Request.RequestContext.HttpContext.Timestamp.ToString("yyyy-MM-dd HH:mm:ss");
+                    request.Timestamp = HttpContext.Current.Request.RequestContext.HttpContext.Timestamp.ToUniversalTime().ToString("yyyy-M-d H:m:s");
                     request.Ip = HttpContext.Current.Request.ServerVariables["REMOTE_ADDR"];
                     request.Url = actionContext.Request.RequestUri.AbsoluteUri;
+                    var pathAndQuery = actionContext.Request.RequestUri.PathAndQuery.Split('?');
+                    request.RoutePath = pathAndQuery[0];
+                    request.Query = pathAndQuery[1];
                     request.UserAgent = actionContext.Request.Headers.UserAgent.ToString();
                     request.Method = actionContext.Request.Method.ToString();
 
@@ -211,14 +209,27 @@ namespace Treblle.Net
                         {
                             if (actionExecutedContext.Response.Content.Headers.ContentType.ToString().Contains("application/json"))
                             {
-                                var outputStream = actionExecutedContext.Response.Content.ReadAsStreamAsync().Result;
+                                if (actionExecutedContext.Response.Content.Headers.ContentLength.HasValue && actionExecutedContext.Response.Content.Headers.ContentLength.Value > 2048)
+                                {
+                                    payload.Data.Errors.Add(new Error
+                                    {
+                                        Message = "JSON response size is over 2MB",
+                                        Type = "E_USER_ERROR",
+                                        File = string.Empty,
+                                        Line = 0
+                                    });
+                                }
+                                else
+                                {
+                                    var outputStream = actionExecutedContext.Response.Content.ReadAsStreamAsync().Result;
 
-                                outputStream.Seek(0, SeekOrigin.Begin);
+                                    outputStream.Seek(0, SeekOrigin.Begin);
 
-                                var outputBody = new StreamReader(outputStream).ReadToEnd();
+                                    var outputBody = new StreamReader(outputStream).ReadToEnd();
 
-                                response.Body = Newtonsoft.Json.JsonConvert.DeserializeObject<dynamic>(outputBody);
-                                response.Size = actionExecutedContext.Response.Content.Headers.ContentLength.HasValue ? actionExecutedContext.Response.Content.Headers.ContentLength.Value : 0;
+                                    response.Body = Newtonsoft.Json.JsonConvert.DeserializeObject<dynamic>(outputBody);
+                                    response.Size = actionExecutedContext.Response.Content.Headers.ContentLength.HasValue ? actionExecutedContext.Response.Content.Headers.ContentLength.Value : 0;
+                                }
                             }
                             else
                             {
@@ -227,7 +238,7 @@ namespace Treblle.Net
                         }
                     }
                     stopwatch.Stop();
-                    response.LoadTime = stopwatch.ElapsedMilliseconds / (double)1000;
+                    response.LoadTime = stopwatch.ElapsedMilliseconds;
 
                     Action<HttpContext> AddOnRequestCompletedCallback = httpContext =>
                     {
@@ -313,6 +324,56 @@ namespace Treblle.Net
             }
 
             var httpResponse = httpWebRequest.GetResponse();
+        }
+
+        private static string GetTrimmedSdkVersion()
+        {
+            var versionString = Assembly.GetExecutingAssembly()
+                                  .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+                                  .InformationalVersion ?? "0.0.0";
+
+            // Strip optional suffixes
+            int separatorIndex = versionString.IndexOfAny(new char[] { '-', '+', ' ' });
+            if (separatorIndex >= 0)
+                versionString = versionString.Substring(0, separatorIndex); // Use Substring instead of ranges
+
+            // Parse version, default to "0.0.0" if parsing fails
+            Version version;
+            if (!Version.TryParse(versionString, out version))
+                version = new Version(0, 0, 0);
+
+            return version.Build > 0 ? version.ToString()
+                   : version.Revision > 0 ? $"{version.Major}.{version.Minor}.{version.Build}"
+                   : $"{version.Major}.{version.Minor}";
+        }
+
+        private static string GetCSharpVersion()
+        {
+            #if CSHARP_3_0
+                    return "3";
+            #elif CSHARP_4_0
+                    return "4";
+            #elif CSHARP_5_0
+                    return "5";
+            #elif CSHARP_6_0
+                    return "6";
+            #elif CSHARP_7_0
+                    return "7.0";
+            #elif CSHARP_7_1
+                    return "7.1";
+            #elif CSHARP_7_2
+                    return "7.2";
+            #elif CSHARP_7_3
+                    return "7.3";
+            #elif CSHARP_8_0
+                    return "8";
+            #elif CSHARP_9_0
+                    return "9";
+            #elif CSHARP_10_0
+                    return "10";
+            #else
+                        return "";
+            #endif
         }
     }
 }
