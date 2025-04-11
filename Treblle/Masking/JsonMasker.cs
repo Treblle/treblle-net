@@ -48,7 +48,23 @@ namespace Treblle.Net.Masking
                 {
                     var currentPath = string.Join(".", path.Concat(new[] { prop.Name }));
 
-                    if (prop.Value is JContainer)
+                    if (prop.Value is JArray array)
+                    {
+                        for (int i = 0; i < array.Count; i++)
+                        {
+                            var item = array[i];
+
+                            if (item is JContainer)
+                            {
+                                MaskFieldsFromJToken(item, maskingMap, mask, path.Concat(new[] { prop.Name, i.ToString() }).ToList());
+                            }
+                            else if (item is JValue value)
+                            {
+                                MaskArrayElementIfNeeded(array, i, value, maskingMap, mask, currentPath);
+                            }
+                        }
+                    }
+                    else if (prop.Value is JContainer)
                     {
                         MaskFieldsFromJToken(prop.Value, maskingMap, mask, path.Concat(new[] { prop.Name }).ToList());
                     }
@@ -58,7 +74,7 @@ namespace Treblle.Net.Masking
                         foreach (KeyValuePair<string, string> map in maskingMap)
                         {
 
-                            if (shouldMapPath(map.Key, currentPath))
+                            if (shouldMaskPath(map.Key, currentPath))
                             {
                                 DefaultStringMasker masker = maskers.Where(obj => obj.GetType().Name == map.Value)
                                     .SingleOrDefault();
@@ -94,7 +110,23 @@ namespace Treblle.Net.Masking
             }
         }
 
-        private static bool shouldMapPath(string sensitiveWord, string path)
+        private static void MaskArrayElementIfNeeded(JArray array, int index, JValue value, Dictionary<string, string> maskingMap, string mask, string currentPath)
+        {
+            foreach (var map in maskingMap)
+            {
+                if (shouldMaskPath(map.Key, currentPath))
+                {
+                    var masker = maskers.FirstOrDefault(x => x.GetType().Name == map.Value);
+                    if (masker != null)
+                    {
+                        array[index] = masker.Mask(value.ToString());
+                        return;
+                    }
+                }
+            }
+        }
+
+        private static bool shouldMaskPath(string sensitiveWord, string path)
         {
             sensitiveWord = sensitiveWord.ToLower();
             path = path.ToLower();
