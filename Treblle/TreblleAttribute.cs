@@ -113,6 +113,7 @@ namespace Treblle.Net
                             }
                             else 
                             {
+                                Console.WriteLine("Invalid JSON in request");
                             }
                         }
                         else if (actionContext.Request.Content.Headers.ContentType.ToString().Contains("text/plain"))
