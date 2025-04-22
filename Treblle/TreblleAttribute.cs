@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Diagnostics;
@@ -106,7 +107,13 @@ namespace Treblle.Net
                             req.Seek(0, SeekOrigin.Begin);
                             var bodyJson = new StreamReader(req).ReadToEnd();
 
-                            request.Body = Newtonsoft.Json.JsonConvert.DeserializeObject<dynamic>(bodyJson);
+                            if (IsValidJson(bodyJson))
+                            {
+                                request.Body = Newtonsoft.Json.JsonConvert.DeserializeObject<dynamic>(bodyJson);
+                            }
+                            else 
+                            {
+                            }
                         }
                         else if (actionContext.Request.Content.Headers.ContentType.ToString().Contains("text/plain"))
                         {
@@ -124,7 +131,14 @@ namespace Treblle.Net
 
                             XDocument doc = XDocument.Parse(xmlData);
                             string jsonText = Newtonsoft.Json.JsonConvert.SerializeXNode(doc);
-                            request.Body = Newtonsoft.Json.JsonConvert.DeserializeObject<ExpandoObject>(jsonText);
+                            if (IsValidJson(jsonText))
+                            {
+                                request.Body = Newtonsoft.Json.JsonConvert.DeserializeObject<ExpandoObject>(jsonText);
+                            }
+                            else 
+                            {
+                                Console.WriteLine("Invalid JSON in request");
+                            }
                         }
                         else if (HttpContext.Current.Request.Form != null)
                         {
@@ -141,6 +155,7 @@ namespace Treblle.Net
                         }
                         catch (Exception ex)
                         {
+                            Console.WriteLine("Invalid JSON in request");
                         }
                     }
                 }
@@ -227,7 +242,14 @@ namespace Treblle.Net
 
                                     var outputBody = new StreamReader(outputStream).ReadToEnd();
 
-                                    response.Body = Newtonsoft.Json.JsonConvert.DeserializeObject<dynamic>(outputBody);
+                                    if (IsValidJson(outputBody))
+                                    {
+                                        response.Body = Newtonsoft.Json.JsonConvert.DeserializeObject<dynamic>(outputBody);
+                                    }
+                                    else 
+                                    {
+                                        Console.WriteLine("Invalid JSON in response");
+                                    }
                                     response.Size = actionExecutedContext.Response.Content.Headers.ContentLength.HasValue ? actionExecutedContext.Response.Content.Headers.ContentLength.Value : 0;
                                 }
                             }
@@ -374,6 +396,19 @@ namespace Treblle.Net
             #else
                         return "";
             #endif
+        }
+
+        private bool IsValidJson(string str)
+        {
+            try
+            {
+                JsonConvert.DeserializeObject(str);
+                return true;
+            }
+            catch (JsonReaderException)
+            {
+                return false;
+            }
         }
     }
 }
