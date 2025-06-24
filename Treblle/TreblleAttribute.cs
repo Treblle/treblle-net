@@ -171,7 +171,7 @@ namespace Treblle.Net
         public override void OnActionExecuted(HttpActionExecutedContext actionExecutedContext)
         {
             try
-            {
+                {
                 ApiKey = ConfigurationManager.AppSettings["TreblleApiKey"];
                 ProjectId = ConfigurationManager.AppSettings["TreblleProjectId"];
 
@@ -254,10 +254,6 @@ namespace Treblle.Net
                                     response.Size = actionExecutedContext.Response.Content.Headers.ContentLength.HasValue ? actionExecutedContext.Response.Content.Headers.ContentLength.Value : 0;
                                 }
                             }
-                            else
-                            {
-                                return;
-                            }
                         }
                     }
                     stopwatch.Stop();
@@ -336,6 +332,7 @@ namespace Treblle.Net
 
             var maskedJson = json.Mask(maskingMap, "*****");
 
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
             var httpWebRequest = (HttpWebRequest)WebRequest.Create("https://rocknrolla.treblle.com");
             httpWebRequest.ContentType = "application/json";
             httpWebRequest.Method = "POST";
