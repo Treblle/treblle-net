@@ -94,6 +94,14 @@ Now you can specify which endpoints you want Treblle to track by adding this sim
 
 ```
 
+Or, if you are using Trebble with you WCF service, you can specify which endpoints you want Treblle to track by adding the following attribute to any Service class or method:
+
+```csharp
+
+[TreblleBehavior]
+
+```
+
 That's it. Your API requests and responses are now being sent to your Treblle project.
 
 > See the [docs](https://docs.treblle.com/en/integrations/net) for this SDK to learn more.
