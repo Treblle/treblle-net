@@ -2,7 +2,8 @@
 <package >
   <metadata>
     <id>Treblle.Net</id>
-    <version>1.2</version>
+    <version>1.3
+    </version>
     <title>Treblle.Net</title>
     <authors>Treblle</authors>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
@@ -17,6 +18,8 @@
   <files>
     <file src="tools\Install.ps1" target="tools\Install.ps1" />
     <file src="resources\TreblleIcon.png" target="resources\" />
+	<file src="bin\Debug\Treblle.Net.dll" target="lib\net48\" />
+	<file src="bin\Debug\Treblle.Net.pdb" target="lib\net48\" />
     <file src="..\README.md" target="docs\" />
   </files>
 </package>
