@@ -18,8 +18,8 @@
   <files>
     <file src="tools\Install.ps1" target="tools\Install.ps1" />
     <file src="resources\TreblleIcon.png" target="resources\" />
-	<file src="bin\Debug\Treblle.Net.dll" target="lib\net48\" />
-	<file src="bin\Debug\Treblle.Net.pdb" target="lib\net48\" />
+	<file src="bin\Release\Treblle.Net.dll" target="lib\net462\" />
+	<file src="bin\Release\Treblle.Net.pdb" target="lib\net462\" />
     <file src="..\README.md" target="docs\" />
   </files>
 </package>

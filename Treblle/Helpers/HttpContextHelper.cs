@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.Dynamic;
 using System.IO;
 using System.Linq;
-using System.ServiceModel.Web;
 using System.Web;
 using System.Web.Http.Controllers;
 using System.Xml.Linq;
@@ -14,14 +13,14 @@ namespace Treblle.Net.Helpers
     public static class HttpContextHelper
     {
         public static TrebllePayload ExtractTrebllePayloadData(
-     string projectId,
+     string sdkToken,
      string apiKey)
         {
             var payload = new TrebllePayload();
 
             payload.Sdk = "net-framework";
-            payload.Version = EnvironmentHelper.GetTrimmedSdkVersion();
-            payload.ProjectId = projectId;
+            payload.Version = Constants.SDK_VERSION;
+            payload.SdkToken = sdkToken;
             payload.ApiKey = apiKey;
 
             return payload;
@@ -34,20 +33,58 @@ namespace Treblle.Net.Helpers
             var request = new Request();
 
 
-            request.Timestamp = httpContext.Timestamp.ToUniversalTime().ToString("yyyy-M-d H:m:s");
-            request.Ip = httpContext.Request.ServerVariables["REMOTE_ADDR"];
+            request.Timestamp = httpContext.Timestamp.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss");
+            request.Ip = httpContext.Request.ServerVariables["REMOTE_ADDR"] ?? "bogon";
             request.Url = actionContext.Request.RequestUri.AbsoluteUri;
-            var pathAndQuery = actionContext.Request.RequestUri.PathAndQuery.Split('?');
-            request.RoutePath = pathAndQuery[0];
-            request.Query = pathAndQuery[1];
-            request.UserAgent = actionContext.Request.Headers.UserAgent.ToString();
-            request.Method = actionContext.Request.Method.ToString();
+
+            var pathAndQuery = actionContext.Request.RequestUri.PathAndQuery.Split(new[] { '?' }, 2);
+
+            // Extract route template from Web API routing (e.g., "api/users/{id}/favorites")
+            var routeTemplate = actionContext.RequestContext?.RouteData?.Route?.RouteTemplate;
+            if (!string.IsNullOrEmpty(routeTemplate))
+            {
+                // Convert Web API route template format to OpenAPI format
+                // {id} -> :id, {userId} -> :userId, etc.
+                request.RoutePath = System.Text.RegularExpressions.Regex.Replace(
+                    routeTemplate,
+                    @"\{(\w+)\}",
+                    ":$1");
+            }
+            else
+            {
+                // Fallback to actual path if route template is not available
+                request.RoutePath = pathAndQuery[0];
+            }
+
+            // Parse query string into Dictionary
+            if (pathAndQuery.Length > 1 && !string.IsNullOrEmpty(pathAndQuery[1]))
+            {
+                var queryParams = System.Web.HttpUtility.ParseQueryString(pathAndQuery[1]);
+                request.Query = queryParams.AllKeys
+                    .Where(k => k != null)
+                    .ToDictionary(k => k, k => queryParams[k]);
+            }
+
+            request.UserAgent = actionContext.Request.Headers.UserAgent?.ToString() ?? "";
+            request.Method = actionContext.Request.Method.ToString().ToUpper();
 
             request.Body = null;
 
             if (actionContext.Request.Content.Headers.ContentType != null)
             {
-                if (actionContext.Request.Content.Headers.ContentType.ToString().Contains("application/json"))
+                // Check request payload size
+                var contentLength = actionContext.Request.Content.Headers.ContentLength;
+                if (contentLength.HasValue && contentLength.Value > 2097152) // 2MB
+                {
+                    request.Body = new
+                    {
+                        message = "Request payload over 2MB limit",
+                        size_bytes = contentLength.Value,
+                        size_mb = Math.Round(contentLength.Value / 1048576.0, 2),
+                        treblle_info = "Payload content replaced due to size limit"
+                    };
+                }
+                else if (actionContext.Request.Content.Headers.ContentType.ToString().Contains("application/json"))
                 {
                     Stream req = httpContext.Request.InputStream;
                     req.Seek(0, SeekOrigin.Begin);
@@ -59,7 +96,7 @@ namespace Treblle.Net.Helpers
                     }
                     else
                     {
-                        Console.WriteLine("Invalid JSON in request");
+                        DebugLogger.LogWarning("Invalid JSON in request body");
                     }
                 }
                 else if (actionContext.Request.Content.Headers.ContentType.ToString().Contains("text/plain"))
@@ -84,7 +121,7 @@ namespace Treblle.Net.Helpers
                     }
                     else
                     {
-                        Console.WriteLine("Invalid JSON in request");
+                        DebugLogger.LogWarning("Invalid JSON in request body");
                     }
                 }
                 else if (HttpContext.Current.Request.Form != null)
@@ -109,100 +146,6 @@ namespace Treblle.Net.Helpers
             return request;
         }
 
-        public static Request ExtractRequestData(HttpContext httpContext, IncomingWebRequestContext incomingWebRequestContext)
-        {
-            var request = new Request();
-
-            // 1. Timestamp
-            request.Timestamp = httpContext?.Timestamp.ToUniversalTime().ToString("yyyy-M-d H:m:s");
-
-            // 2. IP Address
-            request.Ip = httpContext?.Request.ServerVariables["REMOTE_ADDR"] ?? "unknown";
-
-            // 3. Request Uri & RoutePath & Query
-            var uri = incomingWebRequestContext?.UriTemplateMatch?.RequestUri;
-            if (uri == null)
-            {
-                uri = httpContext?.Request.Url;
-            }
-
-            if (uri != null)
-            {
-                request.Url = uri.AbsoluteUri;
-                var pathAndQuery = uri.PathAndQuery.Split(new[] { '?' }, 2);
-                request.RoutePath = pathAndQuery[0];
-                request.Query = pathAndQuery.Length > 1 ? pathAndQuery[1] : "";
-            }
-
-            // 4. User-Agent
-            request.UserAgent = httpContext?.Request.Headers["User-Agent"];
-
-            // 5. HTTP Method
-            request.Method = incomingWebRequestContext?.Method;
-
-            // 6. Body Parsing (JSON, XML, etc.)
-            string contentType = httpContext?.Request.ContentType ?? "";
-
-            if (contentType.Contains("application/json"))
-            {
-                Stream req = httpContext.Request.InputStream;
-                req.Seek(0, SeekOrigin.Begin);
-                var bodyJson = new StreamReader(req).ReadToEnd();
-
-                if (IsValidJson(bodyJson))
-                {
-                    request.Body = JsonConvert.DeserializeObject<dynamic>(bodyJson);
-                }
-            }
-            else if (contentType.Contains("text/plain"))
-            {
-                Stream req = httpContext.Request.InputStream;
-                req.Seek(0, SeekOrigin.Begin);
-                request.Body = new StreamReader(req).ReadToEnd();
-            }
-            else if (contentType.Contains("application/xml"))
-            {
-                Stream req = httpContext.Request.InputStream;
-                req.Seek(0, SeekOrigin.Begin);
-                var xmlData = new StreamReader(req).ReadToEnd();
-
-                try
-                {
-                    XDocument doc = XDocument.Parse(xmlData);
-                    string jsonText = JsonConvert.SerializeXNode(doc);
-                    if (IsValidJson(jsonText))
-                    {
-                        request.Body = JsonConvert.DeserializeObject<ExpandoObject>(jsonText);
-                    }
-                }
-                catch (Exception)
-                {
-                    Console.WriteLine("Invalid XML content");
-                }
-            }
-            else if (httpContext?.Request.Form != null)
-            {
-                var dict = httpContext.Request.Form.AllKeys.ToDictionary(k => k, k => httpContext.Request.Form[k]);
-                request.Body = dict;
-            }
-
-            // 7. Headers
-            try
-            {
-                var headers = httpContext?.Request?.Headers;
-                if (headers != null)
-                {
-                    request.Headers = headers.AllKeys.ToDictionary(k => k, k => headers[k]);
-                }
-            }
-            catch
-            {
-                Console.WriteLine("Error extracting headers");
-            }
-
-            return request;
-        }
-
         public static Server ExtractServerData(HttpRequest request)
         {
             var server = new Server();
@@ -211,7 +154,6 @@ namespace Treblle.Net.Helpers
             server.Ip = string.IsNullOrEmpty(serverIpAddress) ? "bogon" : serverIpAddress;
             server.Timezone = (!String.IsNullOrEmpty(TimeZone.CurrentTimeZone.StandardName)) ? TimeZone.CurrentTimeZone.StandardName : "UTC";
             server.Software = request.ServerVariables["SERVER_SOFTWARE"];
-            server.Signature = null;
             server.Protocol = request.ServerVariables["SERVER_PROTOCOL"];
 
             return server;

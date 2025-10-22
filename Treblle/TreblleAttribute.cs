@@ -15,7 +15,7 @@ namespace Treblle.Net
     {
 
         public string ApiKey = "";
-        public string ProjectId = "";
+        public string SdkToken = "";
 
         Stopwatch stopwatch = new Stopwatch();
 
@@ -31,14 +31,14 @@ namespace Treblle.Net
         {
             try
             {
-                ApiKey = ConfigurationManager.AppSettings["TreblleApiKey"];
-                ProjectId = ConfigurationManager.AppSettings["TreblleProjectId"];
+                SdkToken = ConfigurationManager.AppSettings["Treblle:SdkToken"];
+                ApiKey = ConfigurationManager.AppSettings["Treblle:ApiKey"];
 
-                if (!string.IsNullOrWhiteSpace(ApiKey) && !string.IsNullOrWhiteSpace(ProjectId))
+                if (!string.IsNullOrWhiteSpace(SdkToken) && !string.IsNullOrWhiteSpace(ApiKey))
                 {
                     stopwatch.Start();
 
-                    payload = HttpContextHelper.ExtractTrebllePayloadData(ProjectId, ApiKey);
+                    payload = HttpContextHelper.ExtractTrebllePayloadData(SdkToken, ApiKey);
                     language = EnvironmentHelper.ExtractLanguageData();
                     server = HttpContextHelper.ExtractServerData(HttpContext.Current.Request);
                     os = EnvironmentHelper.ExtractOsData();
@@ -56,13 +56,11 @@ namespace Treblle.Net
         {
             try
             {
-                ApiKey = ConfigurationManager.AppSettings["TreblleApiKey"];
-                ProjectId = ConfigurationManager.AppSettings["TreblleProjectId"];
+                SdkToken = ConfigurationManager.AppSettings["Treblle:SdkToken"];
+                ApiKey = ConfigurationManager.AppSettings["Treblle:ApiKey"];
 
-                if (!string.IsNullOrWhiteSpace(ApiKey) && !string.IsNullOrWhiteSpace(ProjectId))
+                if (!string.IsNullOrWhiteSpace(SdkToken) && !string.IsNullOrWhiteSpace(ApiKey))
                 {
-                    data.Errors = new List<Error>();
-
                     if (actionExecutedContext.Exception != null)
                     {
                         var error = HttpContextHelper.ExtractErrorData(actionExecutedContext.Exception);
@@ -80,15 +78,18 @@ namespace Treblle.Net
                         {
                             if (actionExecutedContext.Response.Content.Headers.ContentType.ToString().Contains("application/json"))
                             {
-                                if (actionExecutedContext.Response.Content.Headers.ContentLength.HasValue && actionExecutedContext.Response.Content.Headers.ContentLength.Value > 2048)
+                                var contentLength = actionExecutedContext.Response.Content.Headers.ContentLength;
+                                if (contentLength.HasValue && contentLength.Value > 2097152) // 2MB
                                 {
-                                    payload.Data.Errors.Add(new Error
+                                    // Replace response body with descriptive object instead of adding error
+                                    response.Body = new
                                     {
-                                        Message = "JSON response size is over 2MB",
-                                        Type = "E_USER_ERROR",
-                                        File = string.Empty,
-                                        Line = 0
-                                    });
+                                        message = "Response payload over 2MB limit",
+                                        size_bytes = contentLength.Value,
+                                        size_mb = Math.Round(contentLength.Value / 1048576.0, 2),
+                                        treblle_info = "Payload content replaced due to size limit"
+                                    };
+                                    response.Size = (double)contentLength.Value;
                                 }
                                 else
                                 {
@@ -104,9 +105,9 @@ namespace Treblle.Net
                                     }
                                     else
                                     {
-                                        Console.WriteLine("Invalid JSON in response");
+                                        DebugLogger.LogWarning("Invalid JSON in response body");
                                     }
-                                    response.Size = actionExecutedContext.Response.Content.Headers.ContentLength.HasValue ? actionExecutedContext.Response.Content.Headers.ContentLength.Value : 0;
+                                    response.Size = contentLength.HasValue ? (double)contentLength.Value : 0;
                                 }
                             }
                         }
@@ -131,7 +132,7 @@ namespace Treblle.Net
                             }
                             catch (Exception ex)
                             {
-                                Console.WriteLine(ex.Message);
+                                DebugLogger.LogError("extracting response headers", ex);
                             }
                         }
 
@@ -155,7 +156,7 @@ namespace Treblle.Net
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
+                DebugLogger.LogError("OnActionExecuted", ex);
             }
         }
 

@@ -5,27 +5,6 @@ namespace Treblle.Net.Helpers
 {
     public static class EnvironmentHelper
     {
-        public static string GetTrimmedSdkVersion()
-        {
-            var versionString = Assembly.GetExecutingAssembly()
-                                  .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
-                                  .InformationalVersion ?? "0.0.0";
-
-            // Strip optional suffixes
-            int separatorIndex = versionString.IndexOfAny(new char[] { '-', '+', ' ' });
-            if (separatorIndex >= 0)
-                versionString = versionString.Substring(0, separatorIndex); // Use Substring instead of ranges
-
-            // Parse version, default to "0.0.0" if parsing fails
-            Version version;
-            if (!Version.TryParse(versionString, out version))
-                version = new Version(0, 0, 0);
-
-            return version.Build > 0 ? version.ToString()
-                   : version.Revision > 0 ? $"{version.Major}.{version.Minor}.{version.Build}"
-                   : $"{version.Major}.{version.Minor}";
-        }
-
         public static string GetCSharpVersion()
         {
             #if CSHARP_3_0

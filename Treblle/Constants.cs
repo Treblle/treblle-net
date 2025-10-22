@@ -4,6 +4,11 @@ namespace Treblle.Net
 {
     public static class Constants
     {
+        /// <summary>
+        /// SDK Payload Version - increment this number (21, 22, 23, etc.) when making updates to the SDK
+        /// </summary>
+        public const double SDK_VERSION = 20;
+
         public static readonly Dictionary<string, string> MaskingMap = new Dictionary<string, string>()
         {
             { "password", "DefaultStringMasker" },

@@ -16,7 +16,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Treblle.Net</RootNamespace>
     <AssemblyName>Treblle.Net</AssemblyName>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
     <TargetFrameworkProfile />
@@ -45,7 +45,7 @@
 </PropertyGroup>
   <ItemGroup>
     <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <HintPath>..\packages\Newtonsoft.Json.13.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
+      <HintPath>..\packages\Newtonsoft.Json.13.0.3\lib\net462\Newtonsoft.Json.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Configuration" />
@@ -54,16 +54,14 @@
     <Reference Include="System.Drawing" />
     <Reference Include="System.Net" />
     <Reference Include="System.Net.Http.Formatting, Version=5.2.7.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
-      <HintPath>..\packages\Microsoft.AspNet.WebApi.Client.5.2.7\lib\net45\System.Net.Http.Formatting.dll</HintPath>
+      <HintPath>..\packages\Microsoft.AspNet.WebApi.Client.5.2.7\lib\net462\System.Net.Http.Formatting.dll</HintPath>
     </Reference>
     <Reference Include="System.Security" />
-    <Reference Include="System.ServiceModel" />
-    <Reference Include="System.ServiceModel.Web" />
     <Reference Include="System.ServiceProcess" />
     <Reference Include="System.Transactions" />
     <Reference Include="System.Web" />
     <Reference Include="System.Web.Http, Version=5.2.7.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
-      <HintPath>..\packages\Microsoft.AspNet.WebApi.Core.5.2.7\lib\net45\System.Web.Http.dll</HintPath>
+      <HintPath>..\packages\Microsoft.AspNet.WebApi.Core.5.2.7\lib\net462\System.Web.Http.dll</HintPath>
     </Reference>
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -76,8 +74,10 @@
   <ItemGroup>
     <Compile Include="Constants.cs" />
     <Compile Include="Helpers\AssemblyHelper.cs" />
+    <Compile Include="Helpers\DebugLogger.cs" />
     <Compile Include="Helpers\EnvironmentHelper.cs" />
     <Compile Include="Helpers\HttpContextHelper.cs" />
+    <Compile Include="Helpers\RequestFilter.cs" />
     <Compile Include="Masking\DateMasker.cs" />
     <Compile Include="Masking\DefaultStringMasker.cs" />
     <Compile Include="Masking\CreditCardMasker.cs" />
@@ -86,14 +86,11 @@
     <Compile Include="Masking\PostalCodeMatcher.cs" />
     <Compile Include="Masking\SocialSecurityMasker.cs" />
     <Compile Include="Masking\﻿IStringMasker.cs" />
-    <Compile Include="TreblleAsyncOperationInvoker.cs" />
-    <Compile Include="TreblleBehaviorAttribute.cs" />
-    <Compile Include="TreblleOperationBehavior.cs" />
     <Compile Include="TrebllePayload.cs" />
     <Compile Include="TreblleAttribute.cs" />
+    <Compile Include="TreblleHandler.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TrebllePayloadSender.cs" />
-    <Compile Include="TreblleSyncOperationInvoker.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
