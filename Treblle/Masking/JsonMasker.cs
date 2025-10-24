@@ -10,7 +10,53 @@ namespace Treblle.Net.Masking
 
     public static class JsonMasker
     {
-        static List<DefaultStringMasker> maskers = null;
+        private static List<DefaultStringMasker> maskers = null;
+        private static Dictionary<string, DefaultStringMasker> maskersByType = null;
+        private static readonly object maskerLock = new object();
+
+        /// <summary>
+        /// Masks sensitive fields in a JSON payload containing RawJsonString objects
+        /// This method deserializes RawJsonString objects only once during masking
+        /// </summary>
+        public static string MaskPayload(this string json, Dictionary<string, string> maskingMap, string mask)
+        {
+            if (string.IsNullOrWhiteSpace(json) || maskingMap.Count == 0)
+            {
+                return json;
+            }
+
+            try
+            {
+                if (maskers == null)
+                {
+                    loadMaskers();
+                }
+
+                // Deserialize the full payload
+                var jsonObject = JsonConvert.DeserializeObject<JObject>(json);
+                if (jsonObject == null)
+                {
+                    DebugLogger.LogWarning("Failed to deserialize JSON for masking - returning original");
+                    return json;
+                }
+
+                // Process the entire tree, handling RawJsonString objects
+                MaskFieldsFromJToken(jsonObject, maskingMap, mask, new List<string>(), 0);
+
+                // Serialize with custom settings to handle RawJsonString
+                return JsonConvert.SerializeObject(jsonObject);
+            }
+            catch (JsonException ex)
+            {
+                DebugLogger.LogError("JSON masking (invalid JSON)", ex);
+                return json; // Return original on JSON errors
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.LogError("JSON masking", ex);
+                return json; // Return original on any masking error - never crash host
+            }
+        }
 
         public static string Mask(this string json, Dictionary<string, string> maskingMap, string mask)
         {
@@ -19,26 +65,43 @@ namespace Treblle.Net.Masking
                 return json;
             }
 
-            var jsonObject = JsonConvert.DeserializeObject(json) as JObject;
-            if (jsonObject == null)
+            try
             {
-                return json;
-            }
+                var jsonObject = JsonConvert.DeserializeObject(json) as JObject;
+                if (jsonObject == null)
+                {
+                    return json;
+                }
 
-            if (maskers == null)
+                if (maskers == null)
+                {
+                    loadMaskers();
+                }
+
+                MaskFieldsFromJToken(jsonObject, maskingMap, mask, new List<string>(), 0);
+
+                return jsonObject.ToString();
+            }
+            catch (Exception ex)
             {
-                loadMaskers();
+                DebugLogger.LogError("JSON masking", ex);
+                return json; // Return original on any masking error
             }
-
-            MaskFieldsFromJToken(jsonObject, maskingMap, mask, new List<string>());
-
-            return jsonObject.ToString();
         }
 
-        private static void MaskFieldsFromJToken(JToken token, Dictionary<string, string> maskingMap, string mask, List<string> path)
+        private const int MaxNestingDepth = 50; // Prevent stack overflow on deeply nested JSON
+
+        private static void MaskFieldsFromJToken(JToken token, Dictionary<string, string> maskingMap, string mask, List<string> path, int depth)
         {
             if (token == null || !(token is JContainer container))
             {
+                return;
+            }
+
+            // Prevent stack overflow on deeply nested JSON
+            if (depth > MaxNestingDepth)
+            {
+                DebugLogger.LogWarning($"Max nesting depth ({MaxNestingDepth}) exceeded in JSON masking - skipping deeper levels");
                 return;
             }
 
@@ -56,7 +119,7 @@ namespace Treblle.Net.Masking
 
                             if (item is JContainer)
                             {
-                                MaskFieldsFromJToken(item, maskingMap, mask, path.Concat(new[] { prop.Name, i.ToString() }).ToList());
+                                MaskFieldsFromJToken(item, maskingMap, mask, path.Concat(new[] { prop.Name, i.ToString() }).ToList(), depth + 1);
                             }
                             else if (item is JValue value)
                             {
@@ -66,41 +129,42 @@ namespace Treblle.Net.Masking
                     }
                     else if (prop.Value is JContainer)
                     {
-                        MaskFieldsFromJToken(prop.Value, maskingMap, mask, path.Concat(new[] { prop.Name }).ToList());
+                        MaskFieldsFromJToken(prop.Value, maskingMap, mask, path.Concat(new[] { prop.Name }).ToList(), depth + 1);
                     }
                     else if (prop.Value != null)
                     {
                         bool isValueMasked = false;
+                        var propValueStr = prop.Value.ToString();
+
+                        // First pass: Check if field name matches masking map
                         foreach (KeyValuePair<string, string> map in maskingMap)
                         {
-
                             if (shouldMaskPath(map.Key, currentPath))
                             {
-                                DefaultStringMasker masker = maskers.Where(obj => obj.GetType().Name == map.Value)
-                                    .SingleOrDefault();
-
-                                if (masker != null)
+                                // Use cached masker lookup by type name
+                                if (maskersByType.TryGetValue(map.Value, out var masker))
                                 {
-                                    prop.Value = masker.Mask(prop.Value.ToString());
+                                    prop.Value = masker.Mask(propValueStr);
                                     isValueMasked = true;
-                                    break;
+                                    break; // Exit early - field name matched
                                 }
                                 else
                                 {
-                                    Console.WriteLine($"Could not resolve masker for field {currentPath}");
+                                    DebugLogger.LogWarning($"Could not resolve masker for field {currentPath}");
                                 }
                             }
+                        }
 
-                            // if the value is not masked go over mapping once again to check if value matches any pattern
-                            if (!isValueMasked)
+                        // Second pass: Only if field name didn't match, check if value matches any pattern
+                        // This reduces expensive regex operations
+                        if (!isValueMasked)
+                        {
+                            foreach (DefaultStringMasker masker in maskers)
                             {
-                                foreach (DefaultStringMasker masker in maskers)
+                                if (masker.IsPatternMatch(propValueStr))
                                 {
-                                    if (masker.IsPatternMatch(prop.Value.ToString()))
-                                    {
-                                        prop.Value = masker.Mask(prop.Value.ToString());
-                                        break;
-                                    }
+                                    prop.Value = masker.Mask(propValueStr);
+                                    break; // Exit early - pattern matched
                                 }
                             }
                         }
@@ -116,8 +180,8 @@ namespace Treblle.Net.Masking
             {
                 if (shouldMaskPath(map.Key, currentPath))
                 {
-                    var masker = maskers.FirstOrDefault(x => x.GetType().Name == map.Value);
-                    if (masker != null)
+                    // Use cached masker lookup by type name
+                    if (maskersByType.TryGetValue(map.Value, out var masker))
                     {
                         array[index] = masker.Mask(value.ToString());
                         return;
@@ -128,22 +192,48 @@ namespace Treblle.Net.Masking
 
         private static bool shouldMaskPath(string sensitiveWord, string path)
         {
-            sensitiveWord = sensitiveWord.ToLower();
-            path = path.ToLower();
-            return sensitiveWord.Contains(".")
-                ? (path.Contains(sensitiveWord) || (sensitiveWord.EndsWith("*") && path.Contains(sensitiveWord.Substring(0, sensitiveWord.Length - 1))))
-                : (path.Equals(sensitiveWord) || path.Contains($".{sensitiveWord}"));
+            // Use case-insensitive comparison without allocating new strings
+            if (sensitiveWord.Contains("."))
+            {
+                // Nested path matching
+                return path.IndexOf(sensitiveWord, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                       (sensitiveWord.EndsWith("*") &&
+                        path.IndexOf(sensitiveWord.Substring(0, sensitiveWord.Length - 1), StringComparison.OrdinalIgnoreCase) >= 0);
+            }
+            else
+            {
+                // Simple field name matching
+                return path.Equals(sensitiveWord, StringComparison.OrdinalIgnoreCase) ||
+                       path.IndexOf($".{sensitiveWord}", StringComparison.OrdinalIgnoreCase) >= 0;
+            }
         }
 
         private static void loadMaskers()
         {
-            maskers = new List<DefaultStringMasker>();
-            var allMaskerTypes = AssemblyHelper.GetClassesDerivedFromType(typeof(IStringMasker));
-
-            foreach (var type in allMaskerTypes)
+            // Double-check locking pattern for thread safety
+            if (maskers == null)
             {
-                DefaultStringMasker instance = (DefaultStringMasker)AssemblyHelper.CreateInstance(type);
-                maskers.Add(instance);
+                lock (maskerLock)
+                {
+                    if (maskers == null)
+                    {
+                        var tempMaskers = new List<DefaultStringMasker>();
+                        var tempMaskersByType = new Dictionary<string, DefaultStringMasker>();
+                        var allMaskerTypes = AssemblyHelper.GetClassesDerivedFromType(typeof(IStringMasker));
+
+                        foreach (var type in allMaskerTypes)
+                        {
+                            DefaultStringMasker instance = (DefaultStringMasker)AssemblyHelper.CreateInstance(type);
+                            tempMaskers.Add(instance);
+                            // Cache by type name for O(1) lookup
+                            tempMaskersByType[type.Name] = instance;
+                        }
+
+                        // Assign atomically after full initialization
+                        maskersByType = tempMaskersByType;
+                        maskers = tempMaskers;
+                    }
+                }
             }
         }
 

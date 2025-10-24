@@ -4,12 +4,12 @@ namespace Treblle.Net.Masking
 {
     public sealed class EmailMasker : DefaultStringMasker, IStringMasker
     {
-        private const string _emailPattern = @"^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$";
-        private const string _patternToReplace = @"([^@]+)";
+        private static readonly Regex EmailRegex = new Regex(@"^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$", RegexOptions.Compiled);
+        private static readonly Regex ReplaceRegex = new Regex(@"([^@]+)", RegexOptions.Compiled);
 
         public override bool IsPatternMatch(string input)
         {
-            return Regex.IsMatch(input, _emailPattern);
+            return EmailRegex.IsMatch(input);
         }
 
         string IStringMasker.Mask(string input)
@@ -17,13 +17,11 @@ namespace Treblle.Net.Masking
             if (string.IsNullOrEmpty(input))
                 return string.Empty;
 
-            if (Regex.IsMatch(input, _emailPattern))
+            if (EmailRegex.IsMatch(input))
             {
-                return Regex.Replace(
+                return ReplaceRegex.Replace(
                     input,
-                    _patternToReplace,
-                    match => new string('*', match.Length),
-                    RegexOptions.None
+                    match => new string('*', match.Length)
                 );
             }
 

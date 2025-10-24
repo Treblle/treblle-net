@@ -11,14 +11,12 @@ namespace Treblle.Net.Helpers
     {
         /// <summary>
         /// Content types that should be tracked by Treblle (API responses)
+        /// Treblle only supports JSON-based response payloads or no response payload
         /// </summary>
         private static readonly string[] TrackedContentTypes = new[]
         {
             "application/json",
-            "application/xml",
-            "application/x-www-form-urlencoded",
-            "text/plain",
-            "text/xml",
+            "text/json",
             "application/vnd.api+json",
             "application/ld+json",
             "application/hal+json",

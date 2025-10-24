@@ -4,12 +4,13 @@ namespace Treblle.Net.Masking
 {
     public sealed class CreditCardMasker : DefaultStringMasker, IStringMasker
     {
-        private const string creditCardPattern = @"\d{4}-?\d{4}-?\d{4}-?\d{4}";
+        private static readonly Regex CreditCardRegex = new Regex(@"\d{4}-?\d{4}-?\d{4}-?\d{4}", RegexOptions.Compiled);
+        private static readonly Regex NonDigitRegex = new Regex(@"\D", RegexOptions.Compiled);
         private const string creditCardMask = "****-****-****-";
 
         public override bool IsPatternMatch(string input)
         {
-            return Regex.IsMatch(input, creditCardPattern);
+            return CreditCardRegex.IsMatch(input);
         }
 
         public string Mask(string input)
@@ -17,10 +18,10 @@ namespace Treblle.Net.Masking
             if (string.IsNullOrEmpty(input))
                 return string.Empty;
 
-            if (Regex.IsMatch(input, creditCardPattern))
+            if (CreditCardRegex.IsMatch(input))
             {
                 // Remove non-digit characters from the input
-                string sanitizedCard = Regex.Replace(input, @"\D", "");
+                string sanitizedCard = NonDigitRegex.Replace(input, "");
 
                 // If the result isn't 16 digits long, return original
                 if (sanitizedCard.Length != 16)

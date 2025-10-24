@@ -4,13 +4,13 @@ namespace Treblle.Net.Masking
 {
     public sealed class SocialSecurityMasker : DefaultStringMasker, IStringMasker
     {
-        private const string _socialSecurityPattern = @"^\d{3}-\d{2}-\d{4}$";
-        private const string _patternToReplace = @"^(\d{3}-\d{2}-)(\d{4})$";
+        private static readonly Regex SocialSecurityRegex = new Regex(@"^\d{3}-\d{2}-\d{4}$", RegexOptions.Compiled);
+        private static readonly Regex ReplaceRegex = new Regex(@"^(\d{3}-\d{2}-)(\d{4})$", RegexOptions.Compiled);
         private const string _mask = "***-**-$2";
 
         public override bool IsPatternMatch(string input)
         {
-            return Regex.IsMatch(input, _socialSecurityPattern);
+            return SocialSecurityRegex.IsMatch(input);
         }
 
         public string Mask(string input)
@@ -18,10 +18,10 @@ namespace Treblle.Net.Masking
             if (string.IsNullOrEmpty(input))
                 return string.Empty;
 
-            if (Regex.IsMatch(input, _socialSecurityPattern))
+            if (SocialSecurityRegex.IsMatch(input))
             {
                 // Replace the first part of the SSN with asterisks
-                return Regex.Replace(input, _patternToReplace, _mask);
+                return ReplaceRegex.Replace(input, _mask);
             }
 
             return base.Mask(input);

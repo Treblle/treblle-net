@@ -105,10 +105,18 @@ namespace Treblle.Net
                 treblleResponse.Size = 0;
                 treblleResponse.LoadTime = stopwatch.ElapsedMilliseconds;
 
-                // Send to Treblle even on error
-                await SendToTreblleAsync(payload, data, treblleRequest, treblleResponse, language, server, os);
+                // Send to Treblle even on error - but don't let Treblle errors mask the real exception
+                try
+                {
+                    await SendToTreblleAsync(payload, data, treblleRequest, treblleResponse, language, server, os);
+                }
+                catch (Exception treblleEx)
+                {
+                    // Log but swallow Treblle errors - the original exception is more important
+                    DebugLogger.LogError("Treblle error during exception handling", treblleEx);
+                }
 
-                throw; // Re-throw the exception
+                throw; // Re-throw the original exception
             }
 
             stopwatch.Stop();
@@ -170,10 +178,16 @@ namespace Treblle.Net
                     .ToDictionary(k => k, k => queryParams[k]);
             }
 
-            // Extract headers
-            treblleRequest.Headers = request.Headers
-                .Where(h => h.Key != null)
-                .ToDictionary(h => h.Key, h => string.Join(";", h.Value));
+            // Extract headers with pre-allocated dictionary
+            var headerCount = request.Headers.Count();
+            treblleRequest.Headers = new Dictionary<string, string>(headerCount);
+            foreach (var header in request.Headers)
+            {
+                if (header.Key != null)
+                {
+                    treblleRequest.Headers[header.Key] = string.Join(";", header.Value);
+                }
+            }
 
             // Extract body
             if (request.Content != null)
@@ -196,7 +210,9 @@ namespace Treblle.Net
                         var bodyJson = await request.Content.ReadAsStringAsync();
                         if (!string.IsNullOrEmpty(bodyJson))
                         {
-                            treblleRequest.Body = JsonConvert.DeserializeObject<dynamic>(bodyJson);
+                            // Store as RawJsonString to avoid double deserialization
+                            // Will be deserialized only once during masking
+                            treblleRequest.Body = new RawJsonString(bodyJson);
                         }
                     }
                     catch
@@ -214,10 +230,16 @@ namespace Treblle.Net
             treblleResponse.Code = (int)response.StatusCode;
             treblleResponse.LoadTime = loadTimeMs;
 
-            // Extract response headers
-            treblleResponse.Headers = response.Headers
-                .Where(h => h.Key != null)
-                .ToDictionary(h => h.Key, h => string.Join(";", h.Value));
+            // Extract response headers with pre-allocated dictionary
+            var responseHeaderCount = response.Headers.Count();
+            treblleResponse.Headers = new Dictionary<string, string>(responseHeaderCount);
+            foreach (var header in response.Headers)
+            {
+                if (header.Key != null)
+                {
+                    treblleResponse.Headers[header.Key] = string.Join(";", header.Value);
+                }
+            }
 
             // Extract body
             if (response.Content != null)
@@ -241,7 +263,9 @@ namespace Treblle.Net
                         var bodyJson = await response.Content.ReadAsStringAsync();
                         if (!string.IsNullOrEmpty(bodyJson))
                         {
-                            treblleResponse.Body = JsonConvert.DeserializeObject<dynamic>(bodyJson);
+                            // Store as RawJsonString to avoid double deserialization
+                            // Will be deserialized only once during masking
+                            treblleResponse.Body = new RawJsonString(bodyJson);
                         }
                         treblleResponse.Size = contentLength.HasValue ? (double)contentLength.Value : 0;
                     }
@@ -274,7 +298,8 @@ namespace Treblle.Net
                 var sender = new TrebllePayloadSender();
                 string additionalFieldsFromSettings = ConfigurationManager.AppSettings["Treblle:AdditionalFieldsToMask"];
 
-                await Task.Run(() => sender.PrepareAndSendJson(
+                // Use fully async method - no Task.Run wrapper needed, no thread pool overhead
+                await sender.PrepareAndSendJsonAsync(
                     payload,
                     data,
                     request,
@@ -283,7 +308,7 @@ namespace Treblle.Net
                     server,
                     os,
                     additionalFieldsFromSettings,
-                    _apiKey));
+                    _apiKey).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
