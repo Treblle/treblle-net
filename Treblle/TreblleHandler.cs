@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
@@ -74,24 +75,35 @@ namespace Treblle.Net
 
             try
             {
-                // Extract request information
+                // Extract request information (metadata only, no body yet)
                 payload = HttpContextHelper.ExtractTrebllePayloadData(_sdkToken, _apiKey);
                 language = EnvironmentHelper.ExtractLanguageData();
                 server = HttpContextHelper.ExtractServerData(httpContext.Request);
                 os = EnvironmentHelper.ExtractOsData();
-                treblleRequest = await ExtractRequestDataAsync(httpContext, request);
+                treblleRequest = await ExtractRequestMetadataAsync(httpContext, request);
             }
             catch (Exception ex)
             {
                 // Don't fail the actual request if Treblle has issues
-                DebugLogger.LogError("request capture", ex);
+                DebugLogger.LogError("request metadata capture", ex);
             }
 
-            // Execute the actual request
+            // Execute the actual request first - this allows the controller to consume the request body
             HttpResponseMessage response = null;
             try
             {
                 response = await base.SendAsync(request, cancellationToken);
+
+                // Now extract the body from HttpContext after the request has been processed
+                // This uses the buffered input stream if available
+                try
+                {
+                    await ExtractRequestBodyAsync(httpContext, treblleRequest);
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.LogError("request body capture", ex);
+                }
             }
             catch (Exception ex)
             {
@@ -154,7 +166,7 @@ namespace Treblle.Net
             return response;
         }
 
-        private async Task<Request> ExtractRequestDataAsync(HttpContext httpContext, HttpRequestMessage request)
+        private async Task<Request> ExtractRequestMetadataAsync(HttpContext httpContext, HttpRequestMessage request)
         {
             var treblleRequest = new Request
             {
@@ -207,40 +219,71 @@ namespace Treblle.Net
                 }
             }
 
-            // Extract body
-            if (request.Content != null)
+            return treblleRequest;
+        }
+
+        private async Task ExtractRequestBodyAsync(HttpContext httpContext, Request treblleRequest)
+        {
+            // Check if we have a request body to read
+            if (httpContext?.Request?.InputStream == null || httpContext.Request.ContentLength <= 0)
             {
-                var contentLength = request.Content.Headers.ContentLength;
-                if (contentLength.HasValue && contentLength.Value > 2097152) // 2MB
+                return;
+            }
+
+            var contentType = httpContext.Request.ContentType;
+            var contentLength = httpContext.Request.ContentLength;
+
+            // Check size limit
+            if (contentLength > Constants.MAX_PAYLOAD_BYTES)
+            {
+                treblleRequest.Body = new
                 {
-                    treblleRequest.Body = new
-                    {
-                        message = "Request payload over 2MB limit",
-                        size_bytes = contentLength.Value,
-                        size_mb = Math.Round(contentLength.Value / 1048576.0, 2),
-                        treblle_info = "Payload content replaced due to size limit"
-                    };
-                }
-                else if (request.Content.Headers.ContentType?.MediaType == "application/json")
+                    message = $"Request payload over {Constants.MAX_PAYLOAD_MB}MB limit",
+                    size_bytes = contentLength,
+                    size_mb = Math.Round(contentLength / 1048576.0, 2),
+                    treblle_info = "Payload content replaced due to size limit"
+                };
+                return;
+            }
+
+            // Only capture JSON bodies
+            if (contentType != null && contentType.Contains("application/json"))
+            {
+                try
                 {
-                    try
+                    // Try to read from the input stream
+                    // Note: This will only work if the stream is seekable or hasn't been consumed
+                    var stream = httpContext.Request.InputStream;
+
+                    if (stream.CanSeek)
                     {
-                        var bodyJson = await request.Content.ReadAsStringAsync();
+                        stream.Position = 0; // Reset position to beginning
+                    }
+
+                    using (var reader = new StreamReader(stream, Encoding.UTF8, true, 1024, leaveOpen: true))
+                    {
+                        var bodyJson = await reader.ReadToEndAsync();
+
                         if (!string.IsNullOrEmpty(bodyJson))
                         {
                             // Store as RawJsonString to avoid double deserialization
                             // Will be deserialized only once during masking
                             treblleRequest.Body = new RawJsonString(bodyJson);
                         }
-                    }
-                    catch
-                    {
-                        // If we can't deserialize, skip the body
+
+                        // Reset position if seekable so others can read it
+                        if (stream.CanSeek)
+                        {
+                            stream.Position = 0;
+                        }
                     }
                 }
+                catch
+                {
+                    // If we can't read the body, skip it silently
+                    // The controller may have already consumed it
+                }
             }
-
-            return treblleRequest;
         }
 
         private async Task ExtractResponseDataAsync(HttpResponseMessage response, Response treblleResponse, long loadTimeMs)
@@ -263,11 +306,11 @@ namespace Treblle.Net
             if (response.Content != null)
             {
                 var contentLength = response.Content.Headers.ContentLength;
-                if (contentLength.HasValue && contentLength.Value > 2097152) // 2MB
+                if (contentLength.HasValue && contentLength.Value > Constants.MAX_PAYLOAD_BYTES)
                 {
                     treblleResponse.Body = new
                     {
-                        message = "Response payload over 2MB limit",
+                        message = $"Response payload over {Constants.MAX_PAYLOAD_MB}MB limit",
                         size_bytes = contentLength.Value,
                         size_mb = Math.Round(contentLength.Value / 1048576.0, 2),
                         treblle_info = "Payload content replaced due to size limit"
@@ -285,7 +328,21 @@ namespace Treblle.Net
                             // Will be deserialized only once during masking
                             treblleResponse.Body = new RawJsonString(bodyJson);
                         }
-                        treblleResponse.Size = contentLength.HasValue ? (double)contentLength.Value : 0;
+
+                        // Calculate size: use ContentLength if available, otherwise calculate from actual body
+                        // This handles chunked transfer encoding where ContentLength is null
+                        if (contentLength.HasValue)
+                        {
+                            treblleResponse.Size = (double)contentLength.Value;
+                        }
+                        else if (!string.IsNullOrEmpty(bodyJson))
+                        {
+                            treblleResponse.Size = Encoding.UTF8.GetByteCount(bodyJson);
+                        }
+                        else
+                        {
+                            treblleResponse.Size = 0;
+                        }
                     }
                     catch
                     {

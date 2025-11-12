@@ -9,6 +9,17 @@ namespace Treblle.Net
         /// </summary>
         public const int SDK_VERSION = 20;
 
+        /// <summary>
+        /// Maximum payload size in bytes (2 MB)
+        /// Requests and responses exceeding this size will have their body replaced with size information
+        /// </summary>
+        public const int MAX_PAYLOAD_BYTES = 2097152; // 2 MB
+
+        /// <summary>
+        /// Maximum payload size in megabytes
+        /// </summary>
+        public const double MAX_PAYLOAD_MB = 2.0;
+
         public static readonly Dictionary<string, string> MaskingMap = new Dictionary<string, string>()
         {
             { "password", "DefaultStringMasker" },

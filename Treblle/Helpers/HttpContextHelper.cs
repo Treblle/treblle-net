@@ -3,6 +3,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Web;
 using System.Web.Http.Controllers;
 
@@ -72,11 +73,11 @@ namespace Treblle.Net.Helpers
             {
                 // Check request payload size
                 var contentLength = actionContext.Request.Content.Headers.ContentLength;
-                if (contentLength.HasValue && contentLength.Value > 2097152) // 2MB
+                if (contentLength.HasValue && contentLength.Value > Constants.MAX_PAYLOAD_BYTES)
                 {
                     request.Body = new
                     {
-                        message = "Request payload over 2MB limit",
+                        message = $"Request payload over {Constants.MAX_PAYLOAD_MB}MB limit",
                         size_bytes = contentLength.Value,
                         size_mb = Math.Round(contentLength.Value / 1048576.0, 2),
                         treblle_info = "Payload content replaced due to size limit"
@@ -85,16 +86,25 @@ namespace Treblle.Net.Helpers
                 else if (actionContext.Request.Content.Headers.ContentType.ToString().Contains("application/json"))
                 {
                     Stream req = httpContext.Request.InputStream;
-                    req.Seek(0, SeekOrigin.Begin);
-                    var bodyJson = new StreamReader(req).ReadToEnd();
 
-                    if (IsValidJson(bodyJson))
+                    // Ensure stream is seekable before attempting to seek
+                    if (req.CanSeek)
                     {
-                        request.Body = JsonConvert.DeserializeObject<dynamic>(bodyJson);
+                        req.Seek(0, SeekOrigin.Begin);
                     }
-                    else
+
+                    using (var reader = new StreamReader(req, System.Text.Encoding.UTF8, true, 1024, leaveOpen: true))
                     {
-                        DebugLogger.LogWarning("Invalid JSON in request body");
+                        var bodyJson = reader.ReadToEnd();
+
+                        if (IsValidJson(bodyJson))
+                        {
+                            request.Body = JsonConvert.DeserializeObject<dynamic>(bodyJson);
+                        }
+                        else
+                        {
+                            DebugLogger.LogWarning("Invalid JSON in request body");
+                        }
                     }
                 }
                 else if (HttpContext.Current.Request.Form != null)
@@ -112,7 +122,7 @@ namespace Treblle.Net.Helpers
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine("Invalid JSON in request");
+                    DebugLogger.LogError("parsing request headers", ex);
                 }
             }
 
@@ -125,7 +135,7 @@ namespace Treblle.Net.Helpers
 
             string serverIpAddress = request.ServerVariables["LOCAL_ADDR"];
             server.Ip = string.IsNullOrEmpty(serverIpAddress) ? "bogon" : serverIpAddress;
-            server.Timezone = (!String.IsNullOrEmpty(TimeZone.CurrentTimeZone.StandardName)) ? TimeZone.CurrentTimeZone.StandardName : "UTC";
+            server.Timezone = (!String.IsNullOrEmpty(TimeZoneInfo.Local.StandardName)) ? TimeZoneInfo.Local.StandardName : "UTC";
             server.Software = request.ServerVariables["SERVER_SOFTWARE"];
             server.Protocol = request.ServerVariables["SERVER_PROTOCOL"];
 

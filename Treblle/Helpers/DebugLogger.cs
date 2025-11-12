@@ -124,9 +124,9 @@ namespace Treblle.Net.Helpers
             if (sizeMb >= 1)
             {
                 Log($"📊 {payloadType} payload size: {sizeMb:F2} MB ({sizeBytes:N0} bytes)");
-                if (sizeMb > 2)
+                if (sizeMb > Constants.MAX_PAYLOAD_MB)
                 {
-                    Log($"⚠️  Large {payloadType} payload (over 2MB) - content will be replaced");
+                    Log($"⚠️  Large {payloadType} payload (over {Constants.MAX_PAYLOAD_MB}MB) - content will be replaced");
                 }
             }
             else

@@ -22,24 +22,10 @@ Treblle is an API intelligence platform that helps developers, teams and organiz
   - [Data Masking](#data-masking)
   - [Path Exclusion](#path-exclusion)
   - [Debug Mode](#debug-mode)
-  - [Load Balancing](#load-balancing)
-- [Performance & Reliability](#performance--reliability)
+- [Important: Global HTTP Configuration](#️-important-global-http-configuration)
 - [Troubleshooting](#troubleshooting)
 - [Support](#support)
 - [License](#license)
-
----
-
-## Features
-
-✅ **Automatic API Monitoring** - Track all endpoints with a single line of code
-✅ **Smart Request Filtering** - Automatically excludes static assets and non-API traffic
-✅ **Sensitive Data Masking** - Built-in protection for passwords, credit cards, emails, SSN, and more
-✅ **Zero Performance Impact** - Optimized async operations, compiled regex, connection pooling
-✅ **Production Hardened** - Comprehensive error handling ensures SDK never crashes your API
-✅ **Load Balanced** - Automatic distribution across multiple Treblle endpoints
-✅ **Highly Configurable** - Flexible path exclusion, custom field masking, debug mode
-✅ **No Dependencies** - Works seamlessly with existing ASP.NET Web API applications
 
 ---
 
@@ -48,16 +34,6 @@ Treblle is an API intelligence platform that helps developers, teams and organiz
 - **.NET Framework 4.6.2** or higher (supports 4.6.2, 4.7.x, 4.8, and 4.8.1)
 - **ASP.NET Web API 5.2.7+**
 - **Newtonsoft.Json 13.0.3+**
-
-> **Note**: For WCF services, please use the separate [Treblle.Net.Wcf](https://www.nuget.org/packages/Treblle.Net.Wcf) package.
-
-### Why .NET Framework 4.6.2?
-
-This SDK requires .NET Framework 4.6.2 as the minimum version to ensure:
-- ✅ **Security**: TLS 1.2 enabled by default for secure API communication
-- ✅ **Compatibility**: Wide enterprise support with long-term Microsoft lifecycle
-- ✅ **Performance**: Modern async/await and HttpClient improvements
-- ✅ **Reliability**: Stable foundation for production API monitoring
 
 ---
 
@@ -366,61 +342,49 @@ Enable debug mode to see detailed logging of SDK operations:
 
 ---
 
-### Load Balancing
+## Important: Global HTTP Configuration
 
-The SDK **automatically distributes requests** across multiple Treblle endpoints for improved reliability and performance:
+The Treblle SDK modifies some global `ServicePointManager` settings when first initialized. These changes affect **all HTTP clients** in your application, including third-party libraries.
 
-- **Three Endpoints**:
-  - `rocknrolla.treblle.com`
-  - `punisher.treblle.com`
-  - `sicario.treblle.com`
-- **Random Selection**: Each request is sent to a randomly selected endpoint
-- **Thread-Safe**: Uses proper locking for concurrent requests
-- **No Configuration Required**: Works automatically out of the box
-- **Geographic Distribution**: Improves reliability and reduces latency
+### Modified Settings
 
-You don't need to configure anything - load balancing happens automatically!
+The SDK configures the following global settings for optimal performance and security:
 
----
+| Setting | Value | Purpose |
+|---------|-------|---------|
+| `SecurityProtocol` | TLS 1.2 + TLS 1.1 | Ensures secure HTTPS communication |
+| `DefaultConnectionLimit` | 10 | Allows up to 10 concurrent connections per endpoint |
+| `MaxServicePointIdleTime` | 90 seconds | Keeps connections alive for connection reuse |
+| `Expect100Continue` | Disabled | Improves request performance |
+| `UseNagleAlgorithm` | Disabled | Reduces latency for small packets |
 
-## Performance & Reliability
+### Impact on Your Application
 
-### Performance Optimizations
+These settings will apply to **all** `HttpClient`, `WebClient`, and `HttpWebRequest` instances in your application, not just Treblle's HTTP calls.
 
-The SDK is built for **zero-impact production use**:
+**Good news**: These are generally beneficial defaults that improve performance and security for most applications.
 
-✅ **Async/Await Throughout** - Non-blocking I/O operations
-✅ **Connection Pooling** - Reuses HTTP connections (90-second keep-alive)
-✅ **Compiled Regex Patterns** - 10-50x faster than runtime compilation
-✅ **Pre-allocated Dictionaries** - Reduces memory allocations
-✅ **Smart Masking** - Skips unnecessary pattern matching when field names match
-✅ **Lazy Initialization** - Maskers loaded only when needed
-✅ **O(1) Masker Lookup** - Dictionary-based type resolution
-✅ **Optimized JSON Processing** - Single deserialization during masking
+### When You Need Different Settings
 
-### Reliability Features
+If your application requires different `ServicePointManager` settings:
 
-The SDK is **production-hardened** to never crash your API:
+1. **Configure after Treblle initializes**: Add your custom settings in `Global.asax.cs` or your startup code after the first Treblle request
+2. **Override specific settings**: You can change any setting after Treblle loads - your changes will persist
 
-✅ **Comprehensive Error Handling** - All operations wrapped in try-catch
-✅ **Graceful Degradation** - Failures log but don't prevent tracking
-✅ **Original Exception Preservation** - API errors always re-thrown correctly
-✅ **Stack Overflow Protection** - Max depth limits on recursive operations
-✅ **Circular Reference Handling** - Prevents infinite serialization loops
-✅ **Thread-Safe Initialization** - Double-check locking for concurrent requests
-✅ **Automatic Resource Cleanup** - Proper disposal of HTTP responses
-✅ **DoS Protection** - 2MB payload limit with clear size reporting
-✅ **Network Timeout Protection** - 10-second timeout on all requests
-✅ **Memory Leak Prevention** - All IDisposable resources properly managed
+```csharp
+// In Global.asax.cs Application_Start
+protected void Application_Start()
+{
+    // Your Web API config (Treblle gets initialized here)
+    GlobalConfiguration.Configure(WebApiConfig.Register);
 
-**SDK Guarantee**: The SDK will **never crash your host API**, regardless of:
-- Invalid JSON in requests/responses
-- Network failures or timeouts
-- Treblle API downtime
-- Malicious or malformed payloads
-- Circular object references
-- Concurrent initialization
-- Any other failure scenario
+    // Override Treblle's settings if needed
+    ServicePointManager.DefaultConnectionLimit = 100; // Your custom value
+    ServicePointManager.UseNagleAlgorithm = true;      // Your custom value
+}
+```
+
+3. **Need help?**: If this causes issues, please [open an issue on GitHub](https://github.com/Treblle/treblle-net/issues) - we're happy to make this configurable
 
 ---
 

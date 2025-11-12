@@ -86,6 +86,7 @@
     <Compile Include="Masking\PostalCodeMatcher.cs" />
     <Compile Include="Masking\SocialSecurityMasker.cs" />
     <Compile Include="Masking\﻿IStringMasker.cs" />
+    <Compile Include="RawJsonString.cs" />
     <Compile Include="TrebllePayload.cs" />
     <Compile Include="TreblleAttribute.cs" />
     <Compile Include="TreblleHandler.cs" />

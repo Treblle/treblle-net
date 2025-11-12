@@ -16,7 +16,7 @@ namespace Treblle.Net.Helpers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error creating instance of {type.FullName}: {ex.Message}");
+                DebugLogger.LogError($"creating instance of {type.FullName}", ex);
                 return null;
             }
         }
@@ -43,7 +43,12 @@ namespace Treblle.Net.Helpers
                 {
                     assemblies.Add(Assembly.LoadFrom(dll));
                 }
-                catch (Exception) { } // Ignore loading errors
+                catch (Exception ex)
+                {
+                    // Silently ignore DLLs that can't be loaded (native DLLs, corrupted files, etc.)
+                    // Log only in debug mode for troubleshooting masker loading issues
+                    DebugLogger.LogWarning($"Could not load assembly {Path.GetFileName(dll)}: {ex.Message}");
+                }
             }
 
             return assemblies;

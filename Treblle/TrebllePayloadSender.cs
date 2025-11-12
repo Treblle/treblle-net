@@ -6,6 +6,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Treblle.Net.Masking;
 
@@ -20,7 +21,8 @@ namespace Treblle.Net
             "https://sicario.treblle.com"
         };
 
-        private static readonly Random Random = new Random();
+        // Thread-safe random number generator - each thread gets its own Random instance
+        private static readonly ThreadLocal<Random> ThreadLocalRandom = new ThreadLocal<Random>(() => new Random(Guid.NewGuid().GetHashCode()));
         private static readonly HttpClient HttpClient;
 
         static TrebllePayloadSender()
@@ -44,14 +46,12 @@ namespace Treblle.Net
 
         /// <summary>
         /// Selects a random Treblle endpoint for load balancing
+        /// Thread-safe: each thread has its own Random instance
         /// </summary>
         private static string GetRandomEndpoint()
         {
-            lock (Random)
-            {
-                var index = Random.Next(TreblleEndpoints.Length);
-                return TreblleEndpoints[index];
-            }
+            var index = ThreadLocalRandom.Value.Next(TreblleEndpoints.Length);
+            return TreblleEndpoints[index];
         }
 
         public async Task PrepareAndSendJsonAsync(

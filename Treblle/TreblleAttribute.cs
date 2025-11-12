@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Configuration;
 using System.Diagnostics;
 using System.IO;
+using System.Text;
 using System.Web;
 using System.Web.Http.Controllers;
 using System.Web.Http.Filters;
@@ -47,6 +48,7 @@ namespace Treblle.Net
             }
             catch (Exception ex)
             {
+                DebugLogger.LogError("OnActionExecuting", ex);
             }
 
             base.OnActionExecuting(actionContext);
@@ -79,12 +81,12 @@ namespace Treblle.Net
                             if (actionExecutedContext.Response.Content.Headers.ContentType.ToString().Contains("application/json"))
                             {
                                 var contentLength = actionExecutedContext.Response.Content.Headers.ContentLength;
-                                if (contentLength.HasValue && contentLength.Value > 2097152) // 2MB
+                                if (contentLength.HasValue && contentLength.Value > Constants.MAX_PAYLOAD_BYTES)
                                 {
                                     // Replace response body with descriptive object instead of adding error
                                     response.Body = new
                                     {
-                                        message = "Response payload over 2MB limit",
+                                        message = $"Response payload over {Constants.MAX_PAYLOAD_MB}MB limit",
                                         size_bytes = contentLength.Value,
                                         size_mb = Math.Round(contentLength.Value / 1048576.0, 2),
                                         treblle_info = "Payload content replaced due to size limit"
@@ -93,21 +95,44 @@ namespace Treblle.Net
                                 }
                                 else
                                 {
-                                    var outputStream = actionExecutedContext.Response.Content.ReadAsStreamAsync().Result;
+                                    // Use GetAwaiter().GetResult() instead of .Result to avoid capturing sync context
+                                    // This prevents deadlocks in ASP.NET hosting environments
+                                    var outputStream = actionExecutedContext.Response.Content.ReadAsStreamAsync().GetAwaiter().GetResult();
 
-                                    outputStream.Seek(0, SeekOrigin.Begin);
-
-                                    var outputBody = new StreamReader(outputStream).ReadToEnd();
-
-                                    if (IsValidJson(outputBody))
+                                    // Ensure stream is seekable before attempting to seek
+                                    if (outputStream.CanSeek)
                                     {
-                                        response.Body = JsonConvert.DeserializeObject<dynamic>(outputBody);
+                                        outputStream.Seek(0, SeekOrigin.Begin);
                                     }
-                                    else
+
+                                    using (var reader = new StreamReader(outputStream, System.Text.Encoding.UTF8, true, 1024, leaveOpen: true))
                                     {
-                                        DebugLogger.LogWarning("Invalid JSON in response body");
+                                        var outputBody = reader.ReadToEnd();
+
+                                        if (IsValidJson(outputBody))
+                                        {
+                                            response.Body = JsonConvert.DeserializeObject<dynamic>(outputBody);
+                                        }
+                                        else
+                                        {
+                                            DebugLogger.LogWarning("Invalid JSON in response body");
+                                        }
+
+                                        // Calculate size: use ContentLength if available, otherwise calculate from actual body
+                                        // This handles chunked transfer encoding where ContentLength is null
+                                        if (contentLength.HasValue)
+                                        {
+                                            response.Size = (double)contentLength.Value;
+                                        }
+                                        else if (!string.IsNullOrEmpty(outputBody))
+                                        {
+                                            response.Size = System.Text.Encoding.UTF8.GetByteCount(outputBody);
+                                        }
+                                        else
+                                        {
+                                            response.Size = 0;
+                                        }
                                     }
-                                    response.Size = contentLength.HasValue ? (double)contentLength.Value : 0;
                                 }
                             }
                         }
@@ -136,7 +161,7 @@ namespace Treblle.Net
                             }
                         }
 
-                        string additionalFieldsFromSettings = ConfigurationManager.AppSettings["FieldsToMaskPairedWithMaskers"];
+                        string additionalFieldsFromSettings = ConfigurationManager.AppSettings["Treblle:AdditionalFieldsToMask"];
                         var treblleSender = new TrebllePayloadSender();
 
                         treblleSender.PrepareAndSendJson(
