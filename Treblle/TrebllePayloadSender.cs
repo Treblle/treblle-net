@@ -35,8 +35,7 @@ namespace Treblle.Net
             // Create singleton HttpClient with optimized settings
             HttpClient = new HttpClient(new HttpClientHandler
             {
-                AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
-                MaxConnectionsPerServer = 10
+                AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate
             })
             {
                 Timeout = TimeSpan.FromSeconds(10)
