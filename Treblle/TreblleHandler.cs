@@ -165,9 +165,27 @@ namespace Treblle.Net
                 Method = request.Method.ToString().ToUpper()
             };
 
-            // Extract route path (will be updated if we can get route data)
+            // Extract route path from route template
             var pathAndQuery = request.RequestUri.PathAndQuery.Split(new[] { '?' }, 2);
-            treblleRequest.RoutePath = pathAndQuery[0];
+
+            // Try to get the route template from Web API routing
+            var routeData = request.GetRouteData();
+            var routeTemplate = routeData?.Route?.RouteTemplate;
+
+            if (!string.IsNullOrEmpty(routeTemplate))
+            {
+                // Convert Web API route template format to OpenAPI format
+                // {id} -> :id, {articleId} -> :articleId, etc.
+                treblleRequest.RoutePath = System.Text.RegularExpressions.Regex.Replace(
+                    routeTemplate,
+                    @"\{(\w+)\}",
+                    ":$1");
+            }
+            else
+            {
+                // Fallback to actual path if route template is not available
+                treblleRequest.RoutePath = pathAndQuery[0];
+            }
 
             // Parse query string
             if (pathAndQuery.Length > 1 && !string.IsNullOrEmpty(pathAndQuery[1]))
@@ -308,7 +326,7 @@ namespace Treblle.Net
                     server,
                     os,
                     additionalFieldsFromSettings,
-                    _apiKey).ConfigureAwait(false);
+                    _sdkToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {

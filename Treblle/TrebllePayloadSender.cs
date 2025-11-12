@@ -64,7 +64,7 @@ namespace Treblle.Net
             Server server,
             Os os,
             string additionalFieldsFromSettings,
-            string ApiKey)
+            string SdkToken)
         {
 
             server.Os = os;
@@ -145,7 +145,7 @@ namespace Treblle.Net
             Helpers.DebugLogger.LogPayloadSent(endpoint);
 
             // Send payload asynchronously using HttpClient - fully async, no blocking
-            await SendPayloadAsync(endpoint, finalJson, ApiKey).ConfigureAwait(false);
+            await SendPayloadAsync(endpoint, finalJson, SdkToken).ConfigureAwait(false);
         }
 
         // Legacy synchronous method for backward compatibility
@@ -158,14 +158,14 @@ namespace Treblle.Net
             Server server,
             Os os,
             string additionalFieldsFromSettings,
-            string ApiKey)
+            string SdkToken)
         {
             // Use sync-over-async for backward compatibility
-            PrepareAndSendJsonAsync(payload, data, request, response, language, server, os, additionalFieldsFromSettings, ApiKey)
+            PrepareAndSendJsonAsync(payload, data, request, response, language, server, os, additionalFieldsFromSettings, SdkToken)
                 .GetAwaiter().GetResult();
         }
 
-        private static async Task SendPayloadAsync(string endpoint, string jsonPayload, string apiKey)
+        private static async Task SendPayloadAsync(string endpoint, string jsonPayload, string sdkToken)
         {
             try
             {
@@ -173,7 +173,7 @@ namespace Treblle.Net
                 {
                     using (var request = new HttpRequestMessage(HttpMethod.Post, endpoint))
                     {
-                        request.Headers.Add("x-api-key", apiKey);
+                        request.Headers.Add("x-api-key", sdkToken);
                         request.Content = content;
 
                         using (var response = await HttpClient.SendAsync(request).ConfigureAwait(false))

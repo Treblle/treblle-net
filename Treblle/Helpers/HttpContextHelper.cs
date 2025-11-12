@@ -16,7 +16,7 @@ namespace Treblle.Net.Helpers
         {
             var payload = new TrebllePayload();
 
-            payload.Sdk = "net-framework";
+            payload.Sdk = "net";
             payload.Version = Constants.SDK_VERSION;
             payload.SdkToken = sdkToken;
             payload.ApiKey = apiKey;

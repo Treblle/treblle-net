@@ -148,7 +148,7 @@ namespace Treblle.Net
                             server,
                             os,
                             additionalFieldsFromSettings,
-                            ApiKey);
+                            SdkToken);
                     };
 
                     var subscription = HttpContext.Current.AddOnRequestCompleted(AddOnRequestCompletedCallback);

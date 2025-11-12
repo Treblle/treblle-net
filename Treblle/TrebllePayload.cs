@@ -131,7 +131,7 @@ namespace Treblle.Net
         public string Sdk { get; set; }
 
         [JsonProperty("version")]
-        public double Version { get; set; }
+        public int Version { get; set; }
 
         [JsonProperty("data")]
         public Data Data { get; set; }
