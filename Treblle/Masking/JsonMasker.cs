@@ -224,9 +224,13 @@ namespace Treblle.Net.Masking
                         foreach (var type in allMaskerTypes)
                         {
                             DefaultStringMasker instance = (DefaultStringMasker)AssemblyHelper.CreateInstance(type);
-                            tempMaskers.Add(instance);
-                            // Cache by type name for O(1) lookup
-                            tempMaskersByType[type.Name] = instance;
+                            if (instance != null)
+                            {
+                                tempMaskers.Add(instance);
+                                // Cache by type name for O(1) lookup
+                                tempMaskersByType[type.Name] = instance;
+                                DebugLogger.Log($"Registered masker: {type.Name}");
+                            }
                         }
 
                         // Assign atomically after full initialization
