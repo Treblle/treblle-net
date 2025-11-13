@@ -229,7 +229,6 @@ namespace Treblle.Net.Masking
                                 tempMaskers.Add(instance);
                                 // Cache by type name for O(1) lookup
                                 tempMaskersByType[type.Name] = instance;
-                                DebugLogger.Log($"Registered masker: {type.Name}");
                             }
                         }
 

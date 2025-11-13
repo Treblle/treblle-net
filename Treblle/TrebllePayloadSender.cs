@@ -118,7 +118,13 @@ namespace Treblle.Net
 
                             if (parts.Length == 2)
                             {
+                                // Format: "fieldName: MaskerType"
                                 maskingMap[parts[0].Trim()] = parts[1].Trim();
+                            }
+                            else if (parts.Length == 1 && !string.IsNullOrWhiteSpace(parts[0]))
+                            {
+                                // Simple format: "fieldName" - defaults to DefaultStringMasker
+                                maskingMap[parts[0].Trim()] = "DefaultStringMasker";
                             }
                         }
                     }
