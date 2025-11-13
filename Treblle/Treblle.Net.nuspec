@@ -25,6 +25,13 @@ v2.0.0:
     <icon>resources\TreblleIcon.png</icon>
     <readme>docs\README.md</readme>
     <copyright>Copyright 2021, Treblle Limited</copyright>
+    <dependencies>
+      <group targetFramework="net462">
+        <dependency id="Newtonsoft.Json" version="13.0.3" />
+        <dependency id="Microsoft.AspNet.WebApi.Core" version="5.2.7" />
+        <dependency id="Microsoft.AspNet.WebApi.Client" version="5.2.7" />
+      </group>
+    </dependencies>
   </metadata>
   <files>
     <file src="resources\TreblleIcon.png" target="resources\" />
