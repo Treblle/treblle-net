@@ -380,13 +380,6 @@ With the new configuration:
 </appSettings>
 ```
 
-#### Step 3: Get Your SDK Token
-
-1. Log in to [Treblle Dashboard](https://platform.treblle.com)
-2. Select your project
-3. Go to **Settings** → **Project Info**
-4. Copy your **SDK Token** (this replaces the old Project ID)
-
 ## Important: Global HTTP Configuration
 
 The Treblle SDK modifies some global `ServicePointManager` settings when first initialized. These changes affect **all HTTP clients** in your application, including third-party libraries.
