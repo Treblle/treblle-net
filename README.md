@@ -1,33 +1,17 @@
-# Treblle .NET SDK
+# Treblle - API Intelligence Platform
 
 [![Treblle API Intelligence](https://github.com/user-attachments/assets/b268ae9e-7c8a-4ade-95da-b4ac6fce6eea)](https://treblle.com)
 
 [Website](http://treblle.com/) • [Documentation](https://docs.treblle.com/) • [Pricing](https://treblle.com/pricing)
 
-Treblle is an API intelligence platform that helps developers, teams and organizations understand their APIs from a single integration point.
+Treblle is an API intelligence platfom that helps developers, teams and organizations understand their APIs from a single integration point.
 
 ---
 
-## Table of Contents
+# Treblle .NET SDK
 
-- [Features](#features)
-- [Requirements](#requirements)
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Configuration](#configuration)
-  - [Required Settings](#required-settings)
-  - [Optional Settings](#optional-settings)
-  - [Complete Configuration Example](#complete-configuration-example)
-- [Advanced Features](#advanced-features)
-  - [Data Masking](#data-masking)
-  - [Path Exclusion](#path-exclusion)
-  - [Debug Mode](#debug-mode)
-- [Important: Global HTTP Configuration](#️-important-global-http-configuration)
-- [Troubleshooting](#troubleshooting)
-- [Support](#support)
-- [License](#license)
-
----
+[![Latest Version](https://img.shields.io/nuget/v/Treblle.Net)](https://www.nuget.org/packages/Treblle.Net)
+[![Total Downloads](https://img.shields.io/nuget/dt/Treblle.Net)](https://www.nuget.org/packages/Treblle.Net)
 
 ## Requirements
 
@@ -35,7 +19,6 @@ Treblle is an API intelligence platform that helps developers, teams and organiz
 - **ASP.NET Web API 5.2.7+**
 - **Newtonsoft.Json 13.0.3+**
 
----
 
 ## Installation
 
@@ -58,10 +41,6 @@ dotnet add package Treblle.Net
 3. Search for "Treblle.Net"
 4. Click "Install"
 
-During installation, you'll be prompted to enter your **API Key** and **SDK Token**. You can find these in your [Treblle Dashboard](https://platform.treblle.com).
-
----
-
 ## Quick Start
 
 ### Step 1: Configure Your Credentials
@@ -77,7 +56,7 @@ Add your Treblle credentials to `Web.config`:
 </configuration>
 ```
 
-> **Get your credentials**: Visit your [Treblle Dashboard](https://platform.treblle.com) → Select your project → Copy SDK Token and API Key
+> **Get your credentials**: Visit your [Treblle Dashboard](https://platform.treblle.com) → Find your API → Navigate to Settings → Copy SDK Token and API Key
 
 ### Step 2: Register the Handler (Automatic Tracking - Recommended)
 
@@ -121,8 +100,6 @@ public class ProductsController : ApiController
 }
 ```
 
----
-
 ## Configuration
 
 ### Required Settings
@@ -146,7 +123,7 @@ All optional configuration settings:
 |---------|------|---------|-------------|
 | `Treblle:ExcludedPaths` | string | (none) | Comma-separated paths to exclude from tracking |
 | `Treblle:AdditionalFieldsToMask` | string | (none) | Comma-separated field names to mask |
-| `Treblle:DisableMasking` | bool | `false` | **⚠️ Development only**: Disable data masking |
+| `Treblle:DisableMasking` | bool | `false` | Disable data masking |
 | `Treblle:Debug` | bool | `false` | Enable detailed debug logging |
 
 ### Complete Configuration Example
@@ -162,14 +139,10 @@ All optional configuration settings:
     <add key="Treblle:ExcludedPaths" value="/health,/admin/*,/internal/*" />
     <add key="Treblle:AdditionalFieldsToMask" value="apiKey,authToken,internalId" />
     <add key="Treblle:Debug" value="false" />
-
-    <!-- ⚠️ Development/Testing Only -->
-    <!-- <add key="Treblle:DisableMasking" value="false" /> -->
+    <add key="Treblle:DisableMasking" value="false" />
   </appSettings>
 </configuration>
 ```
-
----
 
 ## Advanced Features
 
@@ -231,15 +204,13 @@ Add your own fields to mask:
 <add key="Treblle:AdditionalFieldsToMask" value="customSecret,apiToken,internalId" />
 ```
 
-#### ⚠️ Disabling Masking (Development/Testing Only)
+#### Disabling Masking
 
 ```xml
 <add key="Treblle:DisableMasking" value="true" />
 ```
 
-**Warning**: This sends all data (passwords, credit cards, emails, etc.) in **plain text**. Only use in development/testing environments.
-
----
+**Warning**: This sends all data (passwords, credit cards, emails, etc.) in **plain text**. We suggest that you use this only in development/testing environments.
 
 ### Path Exclusion
 
@@ -292,8 +263,6 @@ Exclude specific endpoints using pattern matching:
 - `swagger` → Matches `/swagger`, `/api/swagger`, `/v1/swagger/docs`, etc.
 - `/api/internal/*,/debug/*` → Matches both patterns
 
----
-
 ### Debug Mode
 
 Enable debug mode to see detailed logging of SDK operations:
@@ -334,13 +303,89 @@ Enable debug mode to see detailed logging of SDK operations:
 [TREBLLE DEBUG] ❌ Error in payload sending: HTTP 401: Unauthorized
 ```
 
-**Important:** Disable debug mode in production for optimal performance:
+# Migration Guide (v1 → v2)
+
+Upgrading from Treblle.Net v1.x to v2.x requires a few configuration changes. This guide will help you migrate smoothly.
+
+### Breaking Changes
+
+#### 1. Configuration Key Changes
+
+The configuration keys have been renamed to use the `Treblle:` prefix:
+
+**Old (v1.x):**
 ```xml
-<add key="Treblle:Debug" value="false" />
-<!-- Or simply remove the setting entirely -->
+<appSettings>
+  <add key="TreblleApiKey" value="{Your_API_Key}" />
+  <add key="TreblleProjectId" value="{Your_Project_Id}" />
+</appSettings>
 ```
 
----
+**New (v2.x):**
+```xml
+<appSettings>
+  <add key="Treblle:ApiKey" value="{Your_API_Key}" />
+  <add key="Treblle:SdkToken" value="{Your_SDK_Token}" />
+</appSettings>
+```
+
+**Note:** `TreblleProjectId` is now called `Treblle:SdkToken`. You can find your SDK Token in the [Treblle Dashboard](https://platform.treblle.com).
+
+#### 2. Additional Configuration Keys
+
+All optional configuration keys now use the `Treblle:` prefix:
+
+| v1.x Key | v2.x Key |
+|----------|----------|
+| `AdditionalFieldsToMask` | `Treblle:AdditionalFieldsToMask` |
+| `DisableMasking` | `Treblle:DisableMasking` |
+| `Debug` | `Treblle:Debug` |
+| N/A | `Treblle:ExcludedPaths` *(new feature)* |
+
+### Step-by-Step Migration
+
+#### Step 1: Update NuGet Package
+
+```powershell
+# Update to v2.x
+Update-Package Treblle.Net
+```
+
+Or via .NET CLI:
+```bash
+dotnet add package Treblle.Net --version 2.0.1
+```
+
+#### Step 2: Update Web.config
+
+Replace your old configuration:
+
+```xml
+<!-- OLD - Remove this -->
+<appSettings>
+  <add key="TreblleApiKey" value="your-api-key-here" />
+  <add key="TreblleProjectId" value="your-project-id-here" />
+  <add key="AdditionalFieldsToMask" value="field1,field2" />
+</appSettings>
+```
+
+With the new configuration:
+
+```xml
+<!-- NEW - Use this -->
+<appSettings>
+  <add key="Treblle:ApiKey" value="your-api-key-here" />
+  <add key="Treblle:SdkToken" value="your-sdk-token-here" />
+  <add key="Treblle:AdditionalFieldsToMask" value="field1,field2" />
+</appSettings>
+```
+
+#### Step 3: Get Your SDK Token
+
+1. Log in to [Treblle Dashboard](https://platform.treblle.com)
+2. Select your project
+3. Go to **Settings** → **Project Info**
+4. Copy your **SDK Token** (this replaces the old Project ID)
 
 ## Important: Global HTTP Configuration
 
@@ -385,8 +430,6 @@ protected void Application_Start()
 ```
 
 3. **Need help?**: If this causes issues, please [open an issue on GitHub](https://github.com/Treblle/treblle-net/issues) - we're happy to make this configurable
-
----
 
 ## Troubleshooting
 
@@ -437,30 +480,12 @@ Requests/responses **over 2MB** are replaced with size information:
 
 **Solution**: This is by design to prevent performance issues. The event is still tracked with metadata.
 
-### Masking Issues
-
-**Field not being masked:**
-1. Check field name spelling
-2. Verify it's in the masking map (default or custom)
-3. Enable debug mode to see masking application
-
-**Adding custom fields:**
-```xml
-<add key="Treblle:AdditionalFieldsToMask" value="customField,anotherField" />
-```
-
 ### Network Errors
 
 **Connection timeout:**
 - Default timeout: 10 seconds
 - Check firewall rules for outbound HTTPS
 - Verify network connectivity to `*.treblle.com`
-
-**DNS issues:**
-- Ensure DNS can resolve Treblle endpoints
-- Check corporate proxy settings
-
----
 
 ## Supported Content Types
 
@@ -484,13 +509,10 @@ Requests/responses **over 2MB** are replaced with size information:
 - `text/html` ❌
 - Binary content types ❌
 
----
 
 ## Support
 
 If you have problems of any kind feel free to reach out via <https://treblle.com> or email support@treblle.com and we'll do our best to help you out.
-
----
 
 ## License
 
