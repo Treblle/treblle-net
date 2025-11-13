@@ -10,8 +10,8 @@ namespace Treblle.Net.Masking
 
     public static class JsonMasker
     {
-        private static List<DefaultStringMasker> maskers = null;
-        private static Dictionary<string, DefaultStringMasker> maskersByType = null;
+        private static List<IStringMasker> maskers = null;
+        private static Dictionary<string, IStringMasker> maskersByType = null;
         private static readonly object maskerLock = new object();
 
         /// <summary>
@@ -159,7 +159,7 @@ namespace Treblle.Net.Masking
                         // This reduces expensive regex operations
                         if (!isValueMasked)
                         {
-                            foreach (DefaultStringMasker masker in maskers)
+                            foreach (IStringMasker masker in maskers)
                             {
                                 if (masker.IsPatternMatch(propValueStr))
                                 {
@@ -217,13 +217,13 @@ namespace Treblle.Net.Masking
                 {
                     if (maskers == null)
                     {
-                        var tempMaskers = new List<DefaultStringMasker>();
-                        var tempMaskersByType = new Dictionary<string, DefaultStringMasker>();
+                        var tempMaskers = new List<IStringMasker>();
+                        var tempMaskersByType = new Dictionary<string, IStringMasker>();
                         var allMaskerTypes = AssemblyHelper.GetClassesDerivedFromType(typeof(IStringMasker));
 
                         foreach (var type in allMaskerTypes)
                         {
-                            DefaultStringMasker instance = (DefaultStringMasker)AssemblyHelper.CreateInstance(type);
+                            IStringMasker instance = (IStringMasker)AssemblyHelper.CreateInstance(type);
                             if (instance != null)
                             {
                                 tempMaskers.Add(instance);
