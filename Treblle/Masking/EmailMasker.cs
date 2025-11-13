@@ -5,7 +5,6 @@ namespace Treblle.Net.Masking
     public sealed class EmailMasker : DefaultStringMasker, IStringMasker
     {
         private static readonly Regex EmailRegex = new Regex(@"^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$", RegexOptions.Compiled);
-        private static readonly Regex ReplaceRegex = new Regex(@"([^@]+)", RegexOptions.Compiled);
 
         public override bool IsPatternMatch(string input)
         {
@@ -19,10 +18,14 @@ namespace Treblle.Net.Masking
 
             if (EmailRegex.IsMatch(input))
             {
-                return ReplaceRegex.Replace(
-                    input,
-                    match => new string('*', match.Length)
-                );
+                // Find the @ symbol and mask only the local part (before @)
+                int atIndex = input.IndexOf('@');
+                if (atIndex > 0)
+                {
+                    string localPart = input.Substring(0, atIndex);
+                    string domainPart = input.Substring(atIndex); // Includes @
+                    return new string('*', localPart.Length) + domainPart;
+                }
             }
 
             return base.Mask(input);
