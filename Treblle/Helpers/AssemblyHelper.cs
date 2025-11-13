@@ -34,14 +34,24 @@ namespace Treblle.Net.Helpers
 
         static List<Assembly> LoadAssemblies()
         {
-            string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
             var assemblies = new List<Assembly>();
 
+            // Always include the executing assembly (Treblle.Net.dll) which contains the maskers
+            var executingAssembly = Assembly.GetExecutingAssembly();
+            assemblies.Add(executingAssembly);
+
+            // Also scan for any additional assemblies in the base directory
+            string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
             foreach (string dll in Directory.GetFiles(baseDirectory, "*.dll"))
             {
                 try
                 {
-                    assemblies.Add(Assembly.LoadFrom(dll));
+                    var assembly = Assembly.LoadFrom(dll);
+                    // Don't add duplicates
+                    if (!assemblies.Any(a => a.FullName == assembly.FullName))
+                    {
+                        assemblies.Add(assembly);
+                    }
                 }
                 catch (Exception ex)
                 {
