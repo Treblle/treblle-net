@@ -161,7 +161,7 @@ namespace Treblle.Net.Helpers
                     if (frame != null)
                     {
                         var line = frame.GetFileLineNumber();
-                        if (line != null)
+                        if (line > 0)
                         {
                             error.Line = line;
                         }

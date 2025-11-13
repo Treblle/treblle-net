@@ -13,7 +13,7 @@ namespace Treblle.Net.Masking
             return CreditCardRegex.IsMatch(input);
         }
 
-        public string Mask(string input)
+        string IStringMasker.Mask(string input)
         {
             if (string.IsNullOrEmpty(input))
                 return string.Empty;

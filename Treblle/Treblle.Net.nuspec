@@ -2,7 +2,7 @@
 <package >
   <metadata>
     <id>Treblle.Net</id>
-    <version>2.0.0</version>
+    <version>2.0.1</version>
     <title>Treblle.Net</title>
     <authors>Treblle</authors>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
@@ -11,6 +11,10 @@
     <repository type="git" url="https://github.com/Treblle/treblle-net.git" branch="master"/>
     <description>Treblle makes it super easy to understand what's going on with your APIs and the apps that use them.</description>
     <releaseNotes>
+v2.0.1:
+- Fixed compiler warnings (CS0114, CS0472, CS1998)
+- Improved code quality and build stability
+
 v2.0.0:
 - Fixed masking system initialization - maskers now load correctly from executing assembly
 - Fixed AdditionalFieldsToMask configuration - now supports simple format (field names only)
@@ -23,7 +27,6 @@ v2.0.0:
     <copyright>Copyright 2021, Treblle Limited</copyright>
   </metadata>
   <files>
-    <file src="tools\Install.ps1" target="tools\Install.ps1" />
     <file src="resources\TreblleIcon.png" target="resources\" />
 	<file src="bin\Release\Treblle.Net.dll" target="lib\net462\" />
 	<file src="bin\Release\Treblle.Net.pdb" target="lib\net462\" />

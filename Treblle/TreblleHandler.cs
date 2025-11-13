@@ -166,7 +166,7 @@ namespace Treblle.Net
             return response;
         }
 
-        private async Task<Request> ExtractRequestMetadataAsync(HttpContext httpContext, HttpRequestMessage request)
+        private Task<Request> ExtractRequestMetadataAsync(HttpContext httpContext, HttpRequestMessage request)
         {
             var treblleRequest = new Request
             {
@@ -219,7 +219,7 @@ namespace Treblle.Net
                 }
             }
 
-            return treblleRequest;
+            return Task.FromResult(treblleRequest);
         }
 
         private async Task ExtractRequestBodyAsync(HttpContext httpContext, Request treblleRequest)

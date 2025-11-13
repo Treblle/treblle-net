@@ -488,13 +488,7 @@ Requests/responses **over 2MB** are replaced with size information:
 
 ## Support
 
-If you have problems of any kind, feel free to reach out:
-
-- **Email**: support@treblle.com
-- **Website**: <https://treblle.com>
-- **Documentation**: <https://docs.treblle.com/en/integrations/net>
-- **Community**: <https://treblle.com/chat>
-- **GitHub Issues**: <https://github.com/Treblle/treblle-net/issues>
+If you have problems of any kind feel free to reach out via <https://treblle.com> or email support@treblle.com and we'll do our best to help you out.
 
 ---
 

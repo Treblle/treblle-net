@@ -16,7 +16,7 @@ namespace Treblle.Net.Masking
                 DateDashesRegex.IsMatch(input) || DateDashesYearFirstRegex.IsMatch(input);
         }
 
-        public string Mask(string input)
+        string IStringMasker.Mask(string input)
         {
             if (string.IsNullOrEmpty(input))
                 return string.Empty;
